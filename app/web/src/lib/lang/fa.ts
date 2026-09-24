@@ -1236,6 +1236,24 @@ export const fa: Record<string, string> = {
   "Enables the newer policy fields above on old servers.":
     "فیلدهای جدیدتر سیاستِ بالا را روی سرورهای قدیمی فعال می‌کند.",
 
+  /* ── گروه‌های مدت‌دار اشتراک (duration groups) ──────────────────────────── */
+  "Duration groups": "گروه‌های مدت‌دار",
+  "Creates the standard subscription groups on this hub. Picking one of them for a user fills in a matching expiry date automatically.":
+    "گروه‌های استاندارد اشتراک را روی این هاب می‌سازد. با انتخاب یکی از آن‌ها برای کاربر، تاریخ انقضای متناسب به‌صورت خودکار پر می‌شود.",
+  "1 month": "۱ ماه",
+  "2 months": "۲ ماه",
+  "3 months": "۳ ماه",
+  "6 months": "۶ ماه",
+  "9 months": "۹ ماه",
+  "1 year": "۱ سال",
+  "already exists": "موجود است",
+  "Nothing to create": "چیزی برای ساخت نیست",
+  "Create {count} group(s)": "ساخت {count} گروه",
+  "Duration groups created.": "گروه‌های مدت‌دار ساخته شد.",
+  "All duration groups already exist on this hub.": "همهٔ گروه‌های مدت‌دار از قبل روی این هاب وجود دارند.",
+  "Expiry set to {date}": "تاریخ انقضا: {date}",
+  "From group {group}": "بر اساس گروه {group}",
+
   /* ── کلیدهای پویا (از داده‌های se.ts، وضعیت‌ها و مقادیر پیش‌فرض) ─────── */
   "unlimited": "بی‌نهایت",
   "server default": "پیش‌فرض سرور",

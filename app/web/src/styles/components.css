@@ -1188,3 +1188,31 @@
 .eventlist__i--failed {
   color: var(--err);
 }
+
+/* ── Quick-set chips (subscription durations under the expiry field) ─────── */
+.chiprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.chip {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--well, rgba(127, 127, 127, 0.12));
+  color: var(--muted, inherit);
+  transition: color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+.chip:hover {
+  color: var(--text);
+  background: var(--raise, rgba(127, 127, 127, 0.2));
+}
+.chip:active {
+  transform: translateY(1px);
+}

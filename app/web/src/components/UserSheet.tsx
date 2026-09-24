@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, type Quota, type Wire } from "../lib/api";
 import { AUTH_TYPE_OPTIONS, isNever, userBytes } from "../lib/se";
+import { DURATION_GROUPS, durationOfGroup, expiryFromMonths, toLocalInput } from "../lib/duration";
 import { useT } from "../lib/i18n";
 import { useToast } from "../lib/toast";
-import { fileToBase64 } from "../lib/util";
+import { fileToBase64, formatDate } from "../lib/util";
 import { Sheet } from "../ui/Sheet";
 import { ErrorAlert, Field } from "./bits";
 import {
@@ -74,6 +75,9 @@ export function UserSheet({
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 16);
   });
+  // Where the current expiry value came from -- a duration group choice or a
+  // quick chip -- so the field can say so instead of looking like a default.
+  const [expiryFrom, setExpiryFrom] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [quota, setQuota] = useState<Quota | null>(null);
@@ -220,7 +224,22 @@ export function UserSheet({
             <input className="input" value={realname} onChange={(e) => setRealname(e.target.value)} />
           </Field>
           <Field label={t("Group")} hint={t("Group members inherit the group's security policy.")}>
-            <select className="select" value={group} onChange={(e) => setGroup(e.target.value)}>
+            <select
+              className="select"
+              value={group}
+              onChange={(e) => {
+                const v = e.target.value;
+                setGroup(v);
+                // A duration group implies a lifetime: fill the expiry with it
+                // right away. Only a change applies it -- opening the sheet on
+                // an existing user never overwrites the date already there.
+                const preset = durationOfGroup(v);
+                if (preset) {
+                  setExpires(toLocalInput(expiryFromMonths(preset.months)));
+                  setExpiryFrom(preset.name);
+                }
+              }}
+            >
               <option value="">{t("— none —")}</option>
               {groups.map((g) => (
                 <option key={g} value={g}>{g}</option>
@@ -280,8 +299,40 @@ export function UserSheet({
           </Field>
         )}
 
-        <Field label={t("Expires")} hint={t("After this moment the user cannot connect. Empty means never.")}>
-          <input className="input mono" type="datetime-local" value={expires} onChange={(e) => setExpires(e.target.value)} />
+        <Field
+          label={t("Expires")}
+          hint={
+            expiryFrom
+              ? t("Expiry set to {date}", { date: formatDate(new Date(expires).toISOString()) }) +
+                " · " +
+                t("From group {group}", { group: expiryFrom })
+              : t("After this moment the user cannot connect. Empty means never.")
+          }
+        >
+          <input
+            className="input mono"
+            type="datetime-local"
+            value={expires}
+            onChange={(e) => {
+              setExpires(e.target.value);
+              setExpiryFrom(null);
+            }}
+          />
+          <div className="chiprow">
+            {DURATION_GROUPS.map((d) => (
+              <button
+                key={d.name}
+                type="button"
+                className="chip"
+                onClick={() => {
+                  setExpires(toLocalInput(expiryFromMonths(d.months)));
+                  setExpiryFrom(d.name);
+                }}
+              >
+                +{t(d.labelKey)}
+              </button>
+            ))}
+          </div>
         </Field>
 
         <UserQuotaBlock
