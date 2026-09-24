@@ -11,6 +11,7 @@ import {
 } from "react";
 import { ApiError, api, type Wire } from "./api";
 import { useAuth } from "./auth";
+import { useI18n } from "./i18n";
 import { useToast } from "./toast";
 
 /**
@@ -70,6 +71,7 @@ let announcedVersion = "";
 export function UpdateProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { push } = useToast();
+  const { t } = useI18n();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setChecking] = useState(false);
@@ -91,10 +93,10 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       // While an update is running the panel is expected to disappear for a
       // while; that is the update working, not failing.
       if (!applyingRef.current) {
-        setError(err instanceof ApiError ? err.message : "The panel could not be reached");
+        setError(err instanceof ApiError ? err.message : t("The panel could not be reached"));
       }
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (user) void poll();
@@ -139,11 +141,11 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       setStatus({ check: checkResult, state });
       setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "The check could not be run");
+      setError(err instanceof ApiError ? err.message : t("The check could not be run"));
     } finally {
       setChecking(false);
     }
-  }, []);
+  }, [t]);
 
   const start = useCallback(async (version = "") => {
     setStarting(true);
@@ -152,11 +154,11 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       const state = await api.updateApply(version);
       setStatus((s) => ({ check: s?.check ?? {}, state }));
     } catch (err) {
-      setStartError(err instanceof ApiError ? err.message : "The update could not be started");
+      setStartError(err instanceof ApiError ? err.message : t("The update could not be started"));
     } finally {
       setStarting(false);
     }
-  }, []);
+  }, [t]);
 
   const open = useCallback(() => {
     setOpen(true);
@@ -173,11 +175,11 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     const version = String(status.check.latest?.version ?? "");
     if (!version || announcedVersion === version) return;
     announcedVersion = version;
-    push("info", `Version ${version} is available.`, {
-      action: { label: "Update", run: open },
+    push("info", t("Version {v} is available.", { v: version }), {
+      action: { label: t("Update"), run: open },
       duration: 12000,
     });
-  }, [status, user, applying, push, open]);
+  }, [status, user, applying, push, open, t]);
 
   return (
     <UpdateContext.Provider

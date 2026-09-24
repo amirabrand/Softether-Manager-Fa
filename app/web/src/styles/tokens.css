@@ -170,6 +170,12 @@
   color-scheme: dark;
 }
 
+/* Persian: Vazirmatn carries the Arabic script; the Latin stack stays behind
+ * it for embedded English words and technical figures. */
+html.rtl {
+  --font-ui: "Vazirmatn", "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
 /* ══ LIGHT — classic soft UI ═════════════════════════════════════════════ */
 :root[data-theme="light"] {
   --bg: #e3e7ee;

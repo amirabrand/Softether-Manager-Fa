@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CheckRow, ConfirmSheet, Empty, ErrorAlert, Field, KV, LoadingBlock, PageHead, SectionTitle, usePoll } from "../components/bits";
 import { api, type Wire } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { Link } from "../lib/router";
 import { useToast } from "../lib/toast";
 import { downloadBase64, fileToBase64, formatBytes, formatDate, timeAgo } from "../lib/util";
@@ -18,6 +19,7 @@ import { OutcomeNote, Switch, SwitchRow, useToggle } from "../ui/Switch";
  * state; a document lets an operator scan all of it.
  */
 export function ServerSettings({ section }: { section?: string }) {
+  const t = useT();
   useEffect(() => {
     if (section) {
       requestAnimationFrame(() =>
@@ -28,7 +30,7 @@ export function ServerSettings({ section }: { section?: string }) {
 
   return (
     <div className="page">
-      <PageHead title="Server settings" sub={<Link to="/" className="linkish">← dashboard</Link>} />
+      <PageHead title={t("Server settings")} sub={<Link to="/" className="linkish">{t("← dashboard")}</Link>} />
       <div className="setdoc">
         <ListenersCard />
         <ProtocolsCard />
@@ -48,6 +50,7 @@ export function ServerSettings({ section }: { section?: string }) {
 /* ── listeners ────────────────────────────────────────────────────────────── */
 
 function ListenersCard() {
+  const t = useT();
   const [listeners, setListeners] = useState<Wire[] | null>(null);
   const [special, setSpecial] = useState<Wire | null>(null);
   const [adding, setAdding] = useState(false);
@@ -69,11 +72,11 @@ function ListenersCard() {
         count={listeners?.length}
         actions={
           <button className="btn btn--sm" onClick={() => setAdding(true)}>
-            <IconPlus size={14} /> Add port
+            <IconPlus size={14} /> {t("Add port")}
           </button>
         }
       >
-        TCP listeners
+        {t("TCP listeners")}
       </SectionTitle>
       <div className="card" style={{ padding: "var(--s3) var(--s4)" }}>
         {listeners === null ? (
@@ -83,9 +86,9 @@ function ListenersCard() {
             <div key={String(l.Ports_u32)} className="lrow">
               <span className="mono" style={{ fontSize: "var(--t-data)", fontWeight: 600 }}>{String(l.Ports_u32)}</span>
               {l.Errors_bool ? (
-                <span title="The port is enabled but could not be opened — something else holds it."><Pill kind="err" label="cannot open" /></span>
+                <span title={t("The port is enabled but could not be opened — something else holds it.")}><Pill kind="err" label={t("cannot open")} /></span>
               ) : (
-                <OnlinePill online={Boolean(l.Enables_bool)} onLabel="listening" offLabel="disabled" />
+                <OnlinePill online={Boolean(l.Enables_bool)} onLabel={t("listening")} offLabel={t("disabled")} />
               )}
               <span style={{ flex: 1 }} />
               <ListenerSwitch listener={l} reload={load} />
@@ -94,8 +97,8 @@ function ListenersCard() {
                 onClick={() => void guard(async () => {
                   await api.deleteListener(Number(l.Ports_u32));
                   await load();
-                }, `Listener ${l.Ports_u32} deleted.`)}
-                aria-label="Delete listener"
+                }, t("Listener {port} deleted.", { port: l.Ports_u32 }))}
+                aria-label={t("Delete listener")}
               >
                 <IconTrash size={14} />
               </button>
@@ -107,15 +110,15 @@ function ListenersCard() {
             <SpecialListenerSwitch
               special={special}
               field="VpnOverIcmpListener_bool"
-              label="VPN over ICMP"
-              hint="Clients tunnel in ping packets — crosses networks that allow nothing else."
+              label={t("VPN over ICMP")}
+              hint={t("Clients tunnel in ping packets — crosses networks that allow nothing else.")}
               onFresh={setSpecial}
             />
             <SpecialListenerSwitch
               special={special}
               field="VpnOverDnsListener_bool"
-              label="VPN over DNS"
-              hint="Tunnels in DNS queries on UDP 53. Slow, and a last resort."
+              label={t("VPN over DNS")}
+              hint={t("Tunnels in DNS queries on UDP 53. Slow, and a last resort.")}
               onFresh={setSpecial}
             />
           </div>
@@ -123,25 +126,25 @@ function ListenersCard() {
       </div>
       {adding && (
         <Sheet
-          title="New listener"
+          title={t("New listener")}
           onClose={() => setAdding(false)}
           footer={
             <>
-              <button className="btn" onClick={() => setAdding(false)}>Cancel</button>
+              <button className="btn" onClick={() => setAdding(false)}>{t("Cancel")}</button>
               <button
                 className="btn btn--primary"
                 onClick={() => void guard(async () => {
                   await api.createListener(newPort, true);
                   setAdding(false);
                   await load();
-                }, `Listening on ${newPort}.`)}
+                }, t("Listening on {port}.", { port: newPort }))}
               >
-                Add
+                {t("Add")}
               </button>
             </>
           }
         >
-          <Field label="TCP port">
+          <Field label={t("TCP port")}>
             <input className="input mono" type="number" min={1} max={65535} value={newPort} onChange={(e) => setNewPort(Number(e.target.value))} inputMode="numeric" />
           </Field>
         </Sheet>
@@ -154,6 +157,7 @@ function ListenersCard() {
  *  row is the server's answer, read back after every change. */
 function ListenerSwitch({ listener, reload }: { listener: Wire; reload: () => Promise<Wire[] | null> }) {
   const port = Number(listener.Ports_u32);
+  const t = useT();
   const toggle = useToggle({
     value: Boolean(listener.Enables_bool),
     apply: async (next) => {
@@ -165,9 +169,9 @@ function ListenerSwitch({ listener, reload }: { listener: Wire; reload: () => Pr
       const me = list?.find((x) => Number(x.Ports_u32) === port);
       return me ? Boolean(me.Enables_bool) : null;
     },
-    noun: `Listener ${port}`,
-    onWord: "enabled",
-    offWord: "disabled",
+    noun: t("Listener {port}", { port }),
+    onWord: t("enabled"),
+    offWord: t("disabled"),
   });
   return (
     <span className="switchbox">
@@ -176,7 +180,7 @@ function ListenerSwitch({ listener, reload }: { listener: Wire; reload: () => Pr
         pending={toggle.pending}
         target={toggle.target}
         onToggle={() => void toggle.toggle()}
-        label={`Listener on port ${port}`}
+        label={t("Listener on port {port}", { port })}
       />
       <OutcomeNote outcome={toggle.outcome} />
     </span>
@@ -198,6 +202,7 @@ function SpecialListenerSwitch({
   hint: string;
   onFresh: (fresh: Wire) => void;
 }) {
+  const t = useT();
   const on = Boolean(special[field]);
   const toggle = useToggle({
     value: on,
@@ -212,8 +217,8 @@ function SpecialListenerSwitch({
       return r ? Boolean(r[field]) : null;
     },
     noun: label,
-    onWord: "enabled",
-    offWord: "disabled",
+    onWord: t("enabled"),
+    offWord: t("disabled"),
   });
   return (
     <SwitchRow
@@ -221,7 +226,7 @@ function SpecialListenerSwitch({
       hint={hint}
       toggle={toggle}
       on={on}
-      status={<Pill kind={on ? "ok" : "idle"} label={on ? "enabled" : "disabled"} />}
+      status={<Pill kind={on ? "ok" : "idle"} label={on ? t("enabled") : t("disabled")} />}
     />
   );
 }
@@ -231,6 +236,7 @@ function SpecialListenerSwitch({
 /** VPN Azure: the switch, and beside it what the relay itself reports --
  *  enabled is a wish until the server says "connected". */
 function AzureSwitch({ azure, onFresh }: { azure: Wire; onFresh: (fresh: Wire) => void }) {
+  const t = useT();
   const on = Boolean(azure.IsEnabled_bool);
   const connected = Boolean(azure.IsConnected_bool);
   const toggle = useToggle({
@@ -246,20 +252,20 @@ function AzureSwitch({ azure, onFresh }: { azure: Wire; onFresh: (fresh: Wire) =
       return r ? Boolean(r.IsEnabled_bool) : null;
     },
     noun: "VPN Azure",
-    onWord: "enabled",
-    offWord: "disabled",
+    onWord: t("enabled"),
+    offWord: t("disabled"),
   });
   return (
     <SwitchRow
-      label="VPN Azure relay"
-      hint="Reachable through azure even behind NAT, at <hostname>.vpnazure.net."
+      label={t("VPN Azure relay")}
+      hint={t("Reachable through azure even behind NAT, at <hostname>.vpnazure.net.")}
       toggle={toggle}
       on={on}
       status={
         on ? (
-          <Pill kind={connected ? "ok" : "busy"} label={connected ? "connected" : "connecting"} />
+          <Pill kind={connected ? "ok" : "busy"} label={connected ? t("connected") : t("connecting")} />
         ) : (
-          <Pill kind="idle" label="disabled" />
+          <Pill kind="idle" label={t("disabled")} />
         )
       }
     />
@@ -267,6 +273,7 @@ function AzureSwitch({ azure, onFresh }: { azure: Wire; onFresh: (fresh: Wire) =
 }
 
 function ProtocolsCard() {
+  const t = useT();
   const [ipsec, setIpsec] = useState<Wire | null>(null);
   const [openvpn, setOpenvpn] = useState<Wire | null>(null);
   const [azure, setAzure] = useState<Wire | null>(null);
@@ -296,7 +303,7 @@ function ProtocolsCard() {
 
   return (
     <section id="ss-protocols">
-      <SectionTitle>Access protocols</SectionTitle>
+      <SectionTitle>{t("Access protocols")}</SectionTitle>
       <div className="setgrid">
         {/* IPsec / L2TP */}
         <div className="card" style={{ padding: "var(--s4)" }}>
@@ -306,15 +313,15 @@ function ProtocolsCard() {
           ) : (
             <>
               <CheckRow checked={Boolean(ipsec.L2TP_IPsec_bool)} onChange={(v) => { setIpsec({ ...ipsec, L2TP_IPsec_bool: v }); setDirty((d) => ({ ...d, ipsec: true })); }}
-                label="L2TP over IPsec" hint="The built-in VPN of iOS, Android and Windows." />
+                label={t("L2TP over IPsec")} hint={t("The built-in VPN of iOS, Android and Windows.")} />
               <CheckRow checked={Boolean(ipsec.L2TP_Raw_bool)} onChange={(v) => { setIpsec({ ...ipsec, L2TP_Raw_bool: v }); setDirty((d) => ({ ...d, ipsec: true })); }}
-                label="Raw L2TP (no encryption)" hint="Only for equipment that cannot do IPsec." />
+                label={t("Raw L2TP (no encryption)")} hint={t("Only for equipment that cannot do IPsec.")} />
               <CheckRow checked={Boolean(ipsec.EtherIP_IPsec_bool)} onChange={(v) => { setIpsec({ ...ipsec, EtherIP_IPsec_bool: v }); setDirty((d) => ({ ...d, ipsec: true })); }}
-                label="EtherIP / L2TPv3 over IPsec" hint="Site-to-site from routers; client IDs are defined below." />
-              <Field label="IPsec pre-shared key" hint="What clients type as the 'secret'. Keep it short — some devices truncate at 9 characters.">
+                label={t("EtherIP / L2TPv3 over IPsec")} hint={t("Site-to-site from routers; client IDs are defined below.")} />
+              <Field label={t("IPsec pre-shared key")} hint={t("What clients type as the 'secret'. Keep it short — some devices truncate at 9 characters.")}>
                 <input className="input mono" value={secret} onChange={(e) => { setSecret(e.target.value); setDirty((d) => ({ ...d, ipsec: true })); }} autoCapitalize="none" spellCheck={false} />
               </Field>
-              <Field label="Default hub" hint="Where L2TP users land when they do not name a hub.">
+              <Field label={t("Default hub")} hint={t("Where L2TP users land when they do not name a hub.")}>
                 <select className="select" value={String(ipsec.L2TP_DefaultHub_str ?? "")} onChange={(e) => { setIpsec({ ...ipsec, L2TP_DefaultHub_str: e.target.value }); setDirty((d) => ({ ...d, ipsec: true })); }}>
                   {hubs.map((h) => <option key={h} value={h}>{h}</option>)}
                 </select>
@@ -329,8 +336,8 @@ function ProtocolsCard() {
                     L2TP_DefaultHub_str: String(ipsec.L2TP_DefaultHub_str ?? ""),
                   });
                   setDirty((d) => ({ ...d, ipsec: false }));
-                }, "IPsec settings saved.")}>
-                  Save IPsec
+                }, t("IPsec settings saved."))}>
+                  {t("Save IPsec")}
                 </button>
               )}
             </>
@@ -339,18 +346,18 @@ function ProtocolsCard() {
 
         {/* OpenVPN / SSTP */}
         <div className="card" style={{ padding: "var(--s4)" }}>
-          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>OpenVPN & SSTP clone</div>
+          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>{t("OpenVPN & SSTP clone")}</div>
           {!openvpn ? (
             <LoadingBlock />
           ) : (
             <>
               <CheckRow checked={Boolean(openvpn.EnableOpenVPN_bool)} onChange={(v) => { setOpenvpn({ ...openvpn, EnableOpenVPN_bool: v }); setDirty((d) => ({ ...d, openvpn: true })); }}
-                label="OpenVPN server" hint="Stock OpenVPN clients connect straight to this server." />
-              <Field label="OpenVPN UDP ports" hint="Comma separated.">
+                label={t("OpenVPN server")} hint={t("Stock OpenVPN clients connect straight to this server.")} />
+              <Field label={t("OpenVPN UDP ports")} hint={t("Comma separated.")}>
                 <input className="input mono" value={String(openvpn.OpenVPNPortList_str ?? "")} onChange={(e) => { setOpenvpn({ ...openvpn, OpenVPNPortList_str: e.target.value }); setDirty((d) => ({ ...d, openvpn: true })); }} spellCheck={false} inputMode="numeric" />
               </Field>
               <CheckRow checked={Boolean(openvpn.EnableSSTP_bool)} onChange={(v) => { setOpenvpn({ ...openvpn, EnableSSTP_bool: v }); setDirty((d) => ({ ...d, openvpn: true })); }}
-                label="SSTP server" hint="Microsoft SSTP over 443. Needs the server certificate to be trusted by clients." />
+                label={t("SSTP server")} hint={t("Microsoft SSTP over 443. Needs the server certificate to be trusted by clients.")} />
               <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap" }}>
                 {dirty.openvpn && (
                   <button className="btn btn--primary" onClick={() => void guard(async () => {
@@ -360,15 +367,15 @@ function ProtocolsCard() {
                       EnableSSTP_bool: Boolean(openvpn.EnableSSTP_bool),
                     });
                     setDirty((d) => ({ ...d, openvpn: false }));
-                  }, "OpenVPN/SSTP settings saved.")}>
-                    Save
+                  }, t("OpenVPN/SSTP settings saved."))}>
+                    {t("Save")}
                   </button>
                 )}
                 <button className="btn" onClick={() => void guard(async () => {
                   const r = await api.openvpnSample();
                   downloadBase64(r.filename, r.zip_base64, "application/zip");
-                }, "Sample client config downloaded.")}>
-                  <IconDownload size={14} /> Sample client config
+                }, t("Sample client config downloaded."))}>
+                  <IconDownload size={14} /> {t("Sample client config")}
                 </button>
               </div>
             </>
@@ -377,27 +384,27 @@ function ProtocolsCard() {
 
         {/* Azure + DDNS */}
         <div className="card" style={{ padding: "var(--s4)" }}>
-          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>VPN Azure & dynamic DNS</div>
+          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>{t("VPN Azure & dynamic DNS")}</div>
           {!azure || !ddns ? (
             <LoadingBlock />
           ) : (
             <>
               <AzureSwitch azure={azure} onFresh={setAzure} />
               <KV rows={[
-                ["DDNS hostname", String(ddns.CurrentHostName_str || "—")],
+                [t("DDNS hostname"), String(ddns.CurrentHostName_str || "—")],
                 ["FQDN", String(ddns.CurrentFqdn_str || "—")],
                 ["IPv4", String(ddns.CurrentIPv4_str || "—")],
-                ["last error", Number(ddns.Err_IPv4_u32 ?? 0) === 0 ? "none" : String(ddns.ErrStr_IPv4_utf || `code ${ddns.Err_IPv4_u32}`)],
+                [t("last error"), Number(ddns.Err_IPv4_u32 ?? 0) === 0 ? t("none") : String(ddns.ErrStr_IPv4_utf || t("code {code}", { code: ddns.Err_IPv4_u32 }))],
               ]} />
-              <Field label="Change DDNS hostname" hint="The name half of <name>.softether.net — it must be globally unused.">
+              <Field label={t("Change DDNS hostname")} hint={t("The name half of <name>.softether.net — it must be globally unused.")}>
                 <div style={{ display: "flex", gap: "var(--s2)" }}>
                   <input className="input mono" value={ddnsHost} onChange={(e) => setDdnsHost(e.target.value)} placeholder={String(ddns.CurrentHostName_str ?? "")} autoCapitalize="none" spellCheck={false} />
                   <button className="btn" disabled={!ddnsHost.trim()} onClick={() => void guard(async () => {
                     await api.setDdnsHostname(ddnsHost.trim());
                     setDdnsHost("");
                     await load();
-                  }, "DDNS hostname changed.")}>
-                    Apply
+                  }, t("DDNS hostname changed."))}>
+                    {t("Apply")}
                   </button>
                 </div>
               </Field>
@@ -412,6 +419,7 @@ function ProtocolsCard() {
 /* ── encryption & certificate ─────────────────────────────────────────────── */
 
 function EncryptionCard() {
+  const t = useT();
   const [cipher, setCipher] = useState<string | null>(null);
   const [cipherDirty, setCipherDirty] = useState(false);
   const [adminPw, setAdminPw] = useState("");
@@ -425,75 +433,74 @@ function EncryptionCard() {
 
   const uploadCertAndKey = async (certFile: File, keyFile: File) => {
     const [c, k] = await Promise.all([fileToBase64(certFile), fileToBase64(keyFile)]);
-    await guard(() => api.setCert(c, k), "Certificate replaced.");
+    await guard(() => api.setCert(c, k), t("Certificate replaced."));
   };
 
   return (
     <section id="ss-encryption">
-      <SectionTitle>Encryption & certificate</SectionTitle>
+      <SectionTitle>{t("Encryption & certificate")}</SectionTitle>
       <div className="setgrid">
         <div className="card" style={{ padding: "var(--s4)" }}>
-          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>Cipher</div>
-          <Field label="TLS cipher for VPN sessions" hint="As SoftEther names them, e.g. AES128-SHA. What the server accepts depends on its build.">
+          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>{t("Cipher")}</div>
+          <Field label={t("TLS cipher for VPN sessions")} hint={t("As SoftEther names them, e.g. AES128-SHA. What the server accepts depends on its build.")}>
             <input className="input mono" value={cipher ?? ""} onChange={(e) => { setCipher(e.target.value); setCipherDirty(true); }} spellCheck={false} />
           </Field>
           {cipherDirty && (
             <button className="btn btn--primary" onClick={() => void guard(async () => {
               await api.setCipher(cipher ?? "");
               setCipherDirty(false);
-            }, "Cipher saved.")}>
-              Save cipher
+            }, t("Cipher saved."))}>
+              {t("Save cipher")}
             </button>
           )}
-          <div className="section__t" style={{ margin: "var(--s4) 0 var(--s3)" }}>Administrator password</div>
-          <Field label="New password" hint="Changes the VPN server's own admin password; the panel updates its stored copy in the same motion.">
+          <div className="section__t" style={{ margin: "var(--s4) 0 var(--s3)" }}>{t("Administrator password")}</div>
+          <Field label={t("New password")} hint={t("Changes the VPN server's own admin password; the panel updates its stored copy in the same motion.")}>
             <div style={{ display: "flex", gap: "var(--s2)" }}>
               <input className="input" type="password" value={adminPw} onChange={(e) => setAdminPw(e.target.value)} autoComplete="off" />
               <button className="btn" disabled={!adminPw} onClick={() => void guard(async () => {
                 await api.setAdminPassword(adminPw);
                 setAdminPw("");
-              }, "Administrator password changed.")}>
-                Change
+              }, t("Administrator password changed."))}>
+                {t("Change")}
               </button>
             </div>
           </Field>
         </div>
 
         <div className="card" style={{ padding: "var(--s4)" }}>
-          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>Server certificate</div>
+          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>{t("Server certificate")}</div>
           <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", marginBottom: "var(--s3)" }}>
             <button className="btn" onClick={() => void guard(async () => {
               const r = await api.cert();
               downloadBase64("server.cer", String(r.cert_base64 ?? ""), "application/pkix-cert");
             })}>
-              <IconDownload size={14} /> Download certificate
+              <IconDownload size={14} /> {t("Download certificate")}
             </button>
-            <button className="btn" onClick={() => setConfirmingRegen(true)}>Regenerate self-signed</button>
+            <button className="btn" onClick={() => setConfirmingRegen(true)}>{t("Regenerate self-signed")}</button>
           </div>
           <CertUpload onUpload={uploadCertAndKey} />
         </div>
       </div>
       {confirmingRegen && (
         <Sheet
-          title="Regenerate the server certificate"
+          title={t("Regenerate the server certificate")}
           onClose={() => setConfirmingRegen(false)}
           footer={
             <>
-              <button className="btn" onClick={() => setConfirmingRegen(false)}>Cancel</button>
+              <button className="btn" onClick={() => setConfirmingRegen(false)}>{t("Cancel")}</button>
               <button className="btn btn--danger" disabled={!regenCn.trim()} onClick={() => void guard(async () => {
                 await api.regenerateCert(regenCn.trim());
                 setConfirmingRegen(false);
-              }, "Certificate regenerated.")}>
-                Regenerate
+              }, t("Certificate regenerated."))}>
+                {t("Regenerate")}
               </button>
             </>
           }
         >
           <div className="lede" style={{ marginBottom: "var(--s3)" }}>
-            A new self-signed certificate replaces the current one immediately. Clients that pinned
-            the old one (and SSTP clients) will complain until they trust the new one.
+            {t("A new self-signed certificate replaces the current one immediately. Clients that pinned the old one (and SSTP clients) will complain until they trust the new one.")}
           </div>
-          <Field label="Common name (CN)" hint="Usually the server's public hostname.">
+          <Field label={t("Common name (CN)")} hint={t("Usually the server's public hostname.")}>
             <input className="input mono" value={regenCn} onChange={(e) => setRegenCn(e.target.value)} placeholder="vpn.example.net" spellCheck={false} autoCapitalize="none" />
           </Field>
         </Sheet>
@@ -503,15 +510,16 @@ function EncryptionCard() {
 }
 
 function CertUpload({ onUpload }: { onUpload: (cert: File, key: File) => Promise<void> }) {
+  const t = useT();
   const [cert, setCert] = useState<File | null>(null);
   const [key, setKey] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   return (
     <>
-      <Field label="Replace with your own (certificate + private key)">
+      <Field label={t("Replace with your own (certificate + private key)")}>
         <input className="input" type="file" accept=".cer,.crt,.pem" onChange={(e) => setCert(e.target.files?.[0] ?? null)} />
       </Field>
-      <Field label="Private key">
+      <Field label={t("Private key")}>
         <input className="input" type="file" accept=".key,.pem" onChange={(e) => setKey(e.target.files?.[0] ?? null)} />
       </Field>
       <button
@@ -526,7 +534,7 @@ function CertUpload({ onUpload }: { onUpload: (cert: File, key: File) => Promise
           setKey(null);
         }}
       >
-        {busy && <span className="spin" />} <IconUpload size={14} /> Install certificate
+        {busy && <span className="spin" />} <IconUpload size={14} /> {t("Install certificate")}
       </button>
     </>
   );
@@ -535,6 +543,7 @@ function CertUpload({ onUpload }: { onUpload: (cert: File, key: File) => Promise
 /* ── local bridge ─────────────────────────────────────────────────────────── */
 
 function BridgeCard() {
+  const t = useT();
   const [bridges, setBridges] = useState<Wire[] | null>(null);
   const [support, setSupport] = useState<Wire | null>(null);
   const [adding, setAdding] = useState(false);
@@ -556,21 +565,20 @@ function BridgeCard() {
         count={bridges?.length}
         actions={
           <button className="btn btn--sm" onClick={() => setAdding(true)} disabled={support ? !support.IsBridgeSupportedOs_bool : false}>
-            <IconPlus size={14} /> New bridge
+            <IconPlus size={14} /> {t("New bridge")}
           </button>
         }
       >
-        Local bridges
+        {t("Local bridges")}
       </SectionTitle>
       {support && !support.IsBridgeSupportedOs_bool && (
-        <div className="alert alert--warn">This operating system does not support local bridging.</div>
+        <div className="alert alert--warn">{t("This operating system does not support local bridging.")}</div>
       )}
       {bridges === null ? (
         <LoadingBlock />
       ) : bridges.length === 0 ? (
-        <Empty title="no local bridges">
-          A local bridge joins a Virtual Hub to a physical network adapter, making VPN clients
-          full members of the LAN behind this server.
+        <Empty title={t("no local bridges")}>
+          {t("A local bridge joins a Virtual Hub to a physical network adapter, making VPN clients full members of the LAN behind this server.")}
         </Empty>
       ) : (
         <div className="rows">
@@ -582,14 +590,14 @@ function BridgeCard() {
                   <span className="micro">↔</span>
                   <span className="mono">{String(b.HubNameLB_str)}</span>
                   {b.TapMode_bool && <Pill kind="idle" label="tap" />}
-                  <Pill kind={b.Active_bool ? "ok" : b.Online_bool ? "busy" : "idle"} label={b.Active_bool ? "operating" : b.Online_bool ? "starting" : "offline"} />
+                  <Pill kind={b.Active_bool ? "ok" : b.Online_bool ? "busy" : "idle"} label={b.Active_bool ? t("operating") : b.Online_bool ? t("starting") : t("offline")} />
                 </div>
               </div>
               <div className="row__side">
-                <button className="btn btn--sm btn--ghost" aria-label="Delete bridge" onClick={() => void guard(async () => {
+                <button className="btn btn--sm btn--ghost" aria-label={t("Delete bridge")} onClick={() => void guard(async () => {
                   await api.deleteBridge(String(b.DeviceName_str), String(b.HubNameLB_str));
                   await load();
-                }, "Bridge deleted.")}>
+                }, t("Bridge deleted."))}>
                   <IconTrash size={14} />
                 </button>
               </div>
@@ -603,6 +611,7 @@ function BridgeCard() {
 }
 
 function BridgeSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const t = useT();
   const [devices, setDevices] = useState<Wire[] | null>(null);
   const [hubs, setHubs] = useState<string[]>([]);
   const [device, setDevice] = useState("");
@@ -621,7 +630,7 @@ function BridgeSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
     setError(null);
     try {
       await api.addBridge(device, hub);
-      push("ok", "Bridge created.");
+      push("ok", t("Bridge created."));
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -631,24 +640,24 @@ function BridgeSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
 
   return (
     <Sheet
-      title="New local bridge"
+      title={t("New local bridge")}
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn" onClick={onClose}>{t("Cancel")}</button>
           <button className="btn btn--primary" onClick={save} disabled={busy || !device || !hub}>
-            {busy && <span className="spin" />} Create bridge
+            {busy && <span className="spin" />} {t("Create bridge")}
           </button>
         </>
       }
     >
       {error && <ErrorAlert>{error}</ErrorAlert>}
-      <Field label="Network adapter">
+      <Field label={t("Network adapter")}>
         {devices === null ? (
           <LoadingBlock />
         ) : (
           <select className="select" value={device} onChange={(e) => setDevice(e.target.value)}>
-            <option value="">— choose —</option>
+            <option value="">{t("— choose —")}</option>
             {devices.map((d) => (
               <option key={String(d.DeviceName_str)} value={String(d.DeviceName_str)}>
                 {String(d.DeviceName_str)}{d.NetworkConnectionName_utf ? ` (${d.NetworkConnectionName_utf})` : ""}
@@ -657,15 +666,14 @@ function BridgeSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
           </select>
         )}
       </Field>
-      <Field label="Virtual Hub">
+      <Field label={t("Virtual Hub")}>
         <select className="select" value={hub} onChange={(e) => setHub(e.target.value)}>
-          <option value="">— choose —</option>
+          <option value="">{t("— choose —")}</option>
           {hubs.map((h) => <option key={h} value={h}>{h}</option>)}
         </select>
       </Field>
       <div className="hint">
-        Bridging the adapter the server itself uses can drop its own connectivity on some NICs;
-        a dedicated adapter is the safe choice.
+        {t("Bridging the adapter the server itself uses can drop its own connectivity on some NICs; a dedicated adapter is the safe choice.")}
       </div>
     </Sheet>
   );
@@ -674,6 +682,7 @@ function BridgeSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
 /* ── L3 switches ──────────────────────────────────────────────────────────── */
 
 function L3Card() {
+  const t = useT();
   const [switches, setSwitches] = useState<Wire[] | null>(null);
   const [name, setName] = useState("");
   const [open, setOpen] = useState<string | null>(null);
@@ -689,11 +698,10 @@ function L3Card() {
 
   return (
     <section id="ss-l3">
-      <SectionTitle count={switches?.length}>Virtual layer-3 switches</SectionTitle>
+      <SectionTitle count={switches?.length}>{t("Virtual layer-3 switches")}</SectionTitle>
       <div className="card" style={{ padding: "var(--s4)" }}>
         <div className="lede" style={{ marginBottom: "var(--s3)" }}>
-          An IP router between Virtual Hubs: each interface sits in one hub with one address, and
-          the routing table moves packets between them.
+          {t("An IP router between Virtual Hubs: each interface sits in one hub with one address, and the routing table moves packets between them.")}
         </div>
         {switches === null ? (
           <LoadingBlock />
@@ -702,27 +710,27 @@ function L3Card() {
             {switches.map((s) => (
               <div key={String(s.Name_str)} className="lrow">
                 <span className="mono" style={{ fontWeight: 600 }}>{String(s.Name_str)}</span>
-                <Pill kind={s.Active_bool ? "ok" : "idle"} label={s.Active_bool ? "running" : "stopped"} />
-                <span className="micro">{String(s.NumInterfaces_u32 ?? 0)} if · {String(s.NumTables_u32 ?? 0)} routes</span>
+                <Pill kind={s.Active_bool ? "ok" : "idle"} label={s.Active_bool ? t("running") : t("stopped")} />
+                <span className="micro">{t("{ifs} if · {routes} routes", { ifs: s.NumInterfaces_u32 ?? 0, routes: s.NumTables_u32 ?? 0 })}</span>
                 <span style={{ flex: 1 }} />
-                <button className="btn btn--sm" onClick={() => setOpen(String(s.Name_str))}>Configure</button>
+                <button className="btn btn--sm" onClick={() => setOpen(String(s.Name_str))}>{t("Configure")}</button>
                 <L3Switch sw={s} reload={load} />
-                <button className="btn btn--sm btn--ghost" aria-label="Delete" onClick={() => void guard(async () => {
+                <button className="btn btn--sm btn--ghost" aria-label={t("Delete")} onClick={() => void guard(async () => {
                   await api.delL3(String(s.Name_str));
                   await load();
-                }, "Switch deleted.")}>
+                }, t("Switch deleted."))}>
                   <IconTrash size={14} />
                 </button>
               </div>
             ))}
             <div style={{ display: "flex", gap: "var(--s2)", marginTop: "var(--s3)" }}>
-              <input className="input mono" placeholder="switch name" value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 240 }} autoCapitalize="none" spellCheck={false} />
+              <input className="input mono" placeholder={t("switch name")} value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 240 }} autoCapitalize="none" spellCheck={false} />
               <button className="btn" disabled={!name.trim()} onClick={() => void guard(async () => {
                 await api.addL3(name.trim());
                 setName("");
                 await load();
-              }, "Switch created.")}>
-                <IconPlus size={14} /> Add
+              }, t("Switch created."))}>
+                <IconPlus size={14} /> {t("Add")}
               </button>
             </div>
           </>
@@ -736,6 +744,7 @@ function L3Card() {
 /** Running / stopped for one layer-3 switch. */
 function L3Switch({ sw, reload }: { sw: Wire; reload: () => Promise<Wire[] | null> }) {
   const name = String(sw.Name_str);
+  const t = useT();
   const toggle = useToggle({
     value: Boolean(sw.Active_bool),
     apply: async (next) => {
@@ -747,9 +756,9 @@ function L3Switch({ sw, reload }: { sw: Wire; reload: () => Promise<Wire[] | nul
       const me = list?.find((x) => String(x.Name_str) === name);
       return me ? Boolean(me.Active_bool) : null;
     },
-    noun: `Layer-3 switch ${name}`,
-    onWord: "running",
-    offWord: "stopped",
+    noun: t("Layer-3 switch {name}", { name }),
+    onWord: t("running"),
+    offWord: t("stopped"),
   });
   return (
     <span className="switchbox">
@@ -758,9 +767,9 @@ function L3Switch({ sw, reload }: { sw: Wire; reload: () => Promise<Wire[] | nul
         pending={toggle.pending}
         target={toggle.target}
         onToggle={() => void toggle.toggle()}
-        label={`Layer-3 switch ${name}`}
-        onWord="running"
-        offWord="stopped"
+        label={t("Layer-3 switch {name}", { name })}
+        onWord={t("running")}
+        offWord={t("stopped")}
       />
       <OutcomeNote outcome={toggle.outcome} />
     </span>
@@ -773,6 +782,7 @@ function L3Sheet({ name, onClose }: { name: string; onClose: () => void }) {
   const [hubs, setHubs] = useState<string[]>([]);
   const [ifDraft, setIfDraft] = useState({ hub: "", ip: "", mask: "255.255.255.0" });
   const [routeDraft, setRouteDraft] = useState({ net: "", mask: "255.255.255.0", gw: "", metric: 1 });
+  const t = useT();
   const { guard } = useToast();
 
   const load = useCallback(async () => {
@@ -788,14 +798,14 @@ function L3Sheet({ name, onClose }: { name: string; onClose: () => void }) {
   useEffect(() => void load(), [load]);
 
   return (
-    <Sheet title={`Layer-3 switch ${name}`} subtitle="Stop the switch before changing it; SoftEther refuses edits while it runs." onClose={onClose} wide>
-      <SectionTitle count={ifs?.length ?? undefined}>Interfaces</SectionTitle>
+    <Sheet title={t("Layer-3 switch {name}", { name })} subtitle={t("Stop the switch before changing it; SoftEther refuses edits while it runs.")} onClose={onClose} wide>
+      <SectionTitle count={ifs?.length ?? undefined}>{t("Interfaces")}</SectionTitle>
       {(ifs ?? []).map((i, index) => (
         <div key={index} className="lrow">
           <span className="mono">{String(i.HubName_str)}</span>
           <span className="mono">{String(i.IpAddress_ip)}/{String(i.SubnetMask_ip)}</span>
           <span style={{ flex: 1 }} />
-          <button className="btn btn--sm btn--ghost" aria-label="Delete" onClick={() => void guard(async () => {
+          <button className="btn btn--sm btn--ghost" aria-label={t("Delete")} onClick={() => void guard(async () => {
             await api.delL3If(name, { HubName_str: i.HubName_str });
             await load();
           })}>
@@ -805,31 +815,31 @@ function L3Sheet({ name, onClose }: { name: string; onClose: () => void }) {
       ))}
       <div className="row2" style={{ marginTop: "var(--s2)" }}>
         <select className="select" value={ifDraft.hub} onChange={(e) => setIfDraft({ ...ifDraft, hub: e.target.value })}>
-          <option value="">— hub —</option>
+          <option value="">{t("— hub —")}</option>
           {hubs.map((h) => <option key={h} value={h}>{h}</option>)}
         </select>
         <div style={{ display: "flex", gap: "var(--s2)" }}>
           <input className="input mono" placeholder="192.168.1.1" value={ifDraft.ip} onChange={(e) => setIfDraft({ ...ifDraft, ip: e.target.value })} spellCheck={false} />
-          <input className="input mono" placeholder="mask" value={ifDraft.mask} onChange={(e) => setIfDraft({ ...ifDraft, mask: e.target.value })} spellCheck={false} />
+          <input className="input mono" placeholder={t("mask")} value={ifDraft.mask} onChange={(e) => setIfDraft({ ...ifDraft, mask: e.target.value })} spellCheck={false} />
         </div>
       </div>
       <button className="btn btn--sm" style={{ marginTop: "var(--s2)" }} disabled={!ifDraft.hub || !ifDraft.ip} onClick={() => void guard(async () => {
         await api.addL3If(name, { HubName_str: ifDraft.hub, IpAddress_ip: ifDraft.ip, SubnetMask_ip: ifDraft.mask });
         setIfDraft({ hub: "", ip: "", mask: "255.255.255.0" });
         await load();
-      }, "Interface added.")}>
-        <IconPlus size={14} /> Add interface
+      }, t("Interface added."))}>
+        <IconPlus size={14} /> {t("Add interface")}
       </button>
 
-      <SectionTitle count={routes?.length ?? undefined}>Routing table</SectionTitle>
+      <SectionTitle count={routes?.length ?? undefined}>{t("Routing table")}</SectionTitle>
       {(routes ?? []).map((r, index) => (
         <div key={index} className="lrow">
           <span className="mono">{String(r.NetworkAddress_ip)}/{String(r.SubnetMask_ip)}</span>
-          <span className="micro">via</span>
+          <span className="micro">{t("via")}</span>
           <span className="mono">{String(r.GatewayAddress_ip)}</span>
-          <span className="micro">metric {String(r.Metric_u32)}</span>
+          <span className="micro">{t("metric {n}", { n: String(r.Metric_u32) })}</span>
           <span style={{ flex: 1 }} />
-          <button className="btn btn--sm btn--ghost" aria-label="Delete" onClick={() => void guard(async () => {
+          <button className="btn btn--sm btn--ghost" aria-label={t("Delete")} onClick={() => void guard(async () => {
             await api.delL3Route(name, {
               NetworkAddress_ip: r.NetworkAddress_ip, SubnetMask_ip: r.SubnetMask_ip,
               GatewayAddress_ip: r.GatewayAddress_ip, Metric_u32: r.Metric_u32,
@@ -843,10 +853,10 @@ function L3Sheet({ name, onClose }: { name: string; onClose: () => void }) {
       <div className="row2" style={{ marginTop: "var(--s2)" }}>
         <div style={{ display: "flex", gap: "var(--s2)" }}>
           <input className="input mono" placeholder="10.0.0.0" value={routeDraft.net} onChange={(e) => setRouteDraft({ ...routeDraft, net: e.target.value })} spellCheck={false} />
-          <input className="input mono" placeholder="mask" value={routeDraft.mask} onChange={(e) => setRouteDraft({ ...routeDraft, mask: e.target.value })} spellCheck={false} />
+          <input className="input mono" placeholder={t("mask")} value={routeDraft.mask} onChange={(e) => setRouteDraft({ ...routeDraft, mask: e.target.value })} spellCheck={false} />
         </div>
         <div style={{ display: "flex", gap: "var(--s2)" }}>
-          <input className="input mono" placeholder="gateway" value={routeDraft.gw} onChange={(e) => setRouteDraft({ ...routeDraft, gw: e.target.value })} spellCheck={false} />
+          <input className="input mono" placeholder={t("gateway")} value={routeDraft.gw} onChange={(e) => setRouteDraft({ ...routeDraft, gw: e.target.value })} spellCheck={false} />
           <input className="input mono" type="number" min={1} style={{ maxWidth: 90 }} value={routeDraft.metric} onChange={(e) => setRouteDraft({ ...routeDraft, metric: Number(e.target.value) })} />
         </div>
       </div>
@@ -857,8 +867,8 @@ function L3Sheet({ name, onClose }: { name: string; onClose: () => void }) {
         });
         setRouteDraft({ net: "", mask: "255.255.255.0", gw: "", metric: 1 });
         await load();
-      }, "Route added.")}>
-        <IconPlus size={14} /> Add route
+      }, t("Route added."))}>
+        <IconPlus size={14} /> {t("Add route")}
       </button>
     </Sheet>
   );
@@ -867,6 +877,7 @@ function L3Sheet({ name, onClose }: { name: string; onClose: () => void }) {
 /* ── EtherIP ids ──────────────────────────────────────────────────────────── */
 
 function EtherIpCard() {
+  const t = useT();
   const [ids, setIds] = useState<Wire[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [hubs, setHubs] = useState<string[]>([]);
@@ -889,18 +900,17 @@ function EtherIpCard() {
         count={ids?.length}
         actions={
           <button className="btn btn--sm" onClick={() => setAdding(true)}>
-            <IconPlus size={14} /> Add client ID
+            <IconPlus size={14} /> {t("Add client ID")}
           </button>
         }
       >
-        EtherIP / L2TPv3 client IDs
+        {t("EtherIP / L2TPv3 client IDs")}
       </SectionTitle>
       {ids === null ? (
         <LoadingBlock />
       ) : ids.length === 0 ? (
-        <Empty title="no client IDs">
-          Router-to-router EtherIP/L2TPv3 over IPsec needs each device's ISAKMP ID mapped to a hub
-          and a user here.
+        <Empty title={t("no client IDs")}>
+          {t("Router-to-router EtherIP/L2TPv3 over IPsec needs each device's ISAKMP ID mapped to a hub and a user here.")}
         </Empty>
       ) : (
         <div className="rows">
@@ -909,15 +919,15 @@ function EtherIpCard() {
               <div className="row__main">
                 <div className="row__name mono">{String(entry.Id_str)}</div>
                 <div className="spec">
-                  <span className="chip"><i>hub</i>{String(entry.HubName_str ?? "?")}</span>
-                  <span className="chip"><i>user</i>{String(entry.UserName_str ?? "?")}</span>
+                  <span className="chip"><i>{t("hub")}</i>{String(entry.HubName_str ?? "?")}</span>
+                  <span className="chip"><i>{t("user")}</i>{String(entry.UserName_str ?? "?")}</span>
                 </div>
               </div>
               <div className="row__side">
-                <button className="btn btn--sm btn--ghost" aria-label="Delete" onClick={() => void guard(async () => {
+                <button className="btn btn--sm btn--ghost" aria-label={t("Delete")} onClick={() => void guard(async () => {
                   await api.deleteEtherip(String(entry.Id_str));
                   await load();
-                }, "Client ID removed.")}>
+                }, t("Client ID removed."))}>
                   <IconTrash size={14} />
                 </button>
               </div>
@@ -927,11 +937,11 @@ function EtherIpCard() {
       )}
       {adding && (
         <Sheet
-          title="EtherIP client ID"
+          title={t("EtherIP client ID")}
           onClose={() => setAdding(false)}
           footer={
             <>
-              <button className="btn" onClick={() => setAdding(false)}>Cancel</button>
+              <button className="btn" onClick={() => setAdding(false)}>{t("Cancel")}</button>
               <button className="btn btn--primary" disabled={!draft.id || !draft.hub || !draft.user} onClick={() => void guard(async () => {
                 await api.addEtherip({
                   Id_str: draft.id.trim(), HubName_str: draft.hub, UserName_str: draft.user.trim(), Password_str: draft.password,
@@ -939,26 +949,26 @@ function EtherIpCard() {
                 setAdding(false);
                 setDraft({ id: "", hub: "", user: "", password: "" });
                 await load();
-              }, "Client ID added.")}>
-                Add
+              }, t("Client ID added."))}>
+                {t("Add")}
               </button>
             </>
           }
         >
-          <Field label="ISAKMP phase-1 ID" hint="What the device announces, e.g. its hostname or IP.">
+          <Field label={t("ISAKMP phase-1 ID")} hint={t("What the device announces, e.g. its hostname or IP.")}>
             <input className="input mono" value={draft.id} onChange={(e) => setDraft({ ...draft, id: e.target.value })} spellCheck={false} autoCapitalize="none" />
           </Field>
-          <Field label="Virtual Hub">
+          <Field label={t("Virtual Hub")}>
             <select className="select" value={draft.hub} onChange={(e) => setDraft({ ...draft, hub: e.target.value })}>
-              <option value="">— choose —</option>
+              <option value="">{t("— choose —")}</option>
               {hubs.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
           </Field>
           <div className="row2">
-            <Field label="Username">
+            <Field label={t("Username")}>
               <input className="input mono" value={draft.user} onChange={(e) => setDraft({ ...draft, user: e.target.value })} spellCheck={false} autoCapitalize="none" />
             </Field>
-            <Field label="Password">
+            <Field label={t("Password")}>
               <input className="input" type="password" value={draft.password} onChange={(e) => setDraft({ ...draft, password: e.target.value })} autoComplete="off" />
             </Field>
           </div>
@@ -971,6 +981,7 @@ function EtherIpCard() {
 /* ── clustering ───────────────────────────────────────────────────────────── */
 
 function FarmCard() {
+  const t = useT();
   const [farm, setFarm] = useState<Wire | null>(null);
   const [members, setMembers] = useState<Wire[] | null>(null);
 
@@ -981,38 +992,36 @@ function FarmCard() {
   }, []);
   usePoll(load, "list", []);
 
-  const TYPES: Record<number, string> = { 0: "standalone", 1: "farm controller", 2: "farm member" };
+  const TYPES: Record<number, string> = { 0: t("standalone"), 1: t("farm controller"), 2: t("farm member") };
 
   return (
     <section id="ss-farm">
-      <SectionTitle>Clustering</SectionTitle>
+      <SectionTitle>{t("Clustering")}</SectionTitle>
       <div className="card" style={{ padding: "var(--s4)" }}>
         {!farm ? (
           <LoadingBlock />
         ) : (
           <>
             <KV rows={[
-              ["role", TYPES[Number(farm.ServerType_u32)] ?? "?"],
-              ["controller", Number(farm.ServerType_u32) === 2 ? `${farm.ControllerName_str}:${farm.ControllerPort_u32}` : "—"],
-              ["public IP", String(farm.PublicIp_ip || "—")],
-              ["weight", String(farm.Weight_u32 ?? "—")],
+              [t("role"), TYPES[Number(farm.ServerType_u32)] ?? "?"],
+              [t("controller"), Number(farm.ServerType_u32) === 2 ? `${farm.ControllerName_str}:${farm.ControllerPort_u32}` : "—"],
+              [t("public IP"), String(farm.PublicIp_ip || "—")],
+              [t("weight"), String(farm.Weight_u32 ?? "—")],
             ]} />
             {Number(farm.ServerType_u32) === 1 && members && (
               <>
-                <div className="section__t" style={{ margin: "var(--s4) 0 var(--s2)" }}>Members</div>
+                <div className="section__t" style={{ margin: "var(--s4) 0 var(--s2)" }}>{t("Members")}</div>
                 {members.map((m) => (
                   <div key={String(m.Id_u32)} className="lrow">
-                    <Pill kind={m.Controller_bool ? "busy" : "ok"} label={m.Controller_bool ? "controller" : "member"} />
+                    <Pill kind={m.Controller_bool ? "busy" : "ok"} label={m.Controller_bool ? t("controller") : t("member")} />
                     <span className="mono">{String(m.Hostname_str)}</span>
-                    <span className="micro">{String(m.NumSessions_u32 ?? 0)} sessions · {String(m.NumHubs_u32 ?? 0)} hubs</span>
+                    <span className="micro">{t("{sessions} sessions · {hubs} hubs", { sessions: m.NumSessions_u32 ?? 0, hubs: m.NumHubs_u32 ?? 0 })}</span>
                   </div>
                 ))}
               </>
             )}
             <div className="hint" style={{ marginTop: "var(--s3)" }}>
-              Changing the clustering role restarts the VPN server and erases parts of its state;
-              SoftEther means it as a provisioning-time decision. It is exposed in the API console
-              (SetFarmSetting) rather than as a casual switch here.
+              {t("Changing the clustering role restarts the VPN server and erases parts of its state; SoftEther means it as a provisioning-time decision. It is exposed in the API console (SetFarmSetting) rather than as a casual switch here.")}
             </div>
           </>
         )}
@@ -1024,6 +1033,7 @@ function FarmCard() {
 /* ── keep-alive & syslog ──────────────────────────────────────────────────── */
 
 function KeepSyslogCard() {
+  const t = useT();
   const [keep, setKeep] = useState<Wire | null>(null);
   const [syslog, setSyslog] = useState<Wire | null>(null);
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
@@ -1035,40 +1045,40 @@ function KeepSyslogCard() {
   }, []);
 
   const SYSLOG_MODES = [
-    "off",
-    "server log only",
-    "server + hub security logs",
-    "server + hub security + packet logs",
+    t("off"),
+    t("server log only"),
+    t("server + hub security logs"),
+    t("server + hub security + packet logs"),
   ];
 
   return (
     <section id="ss-keep">
-      <SectionTitle>Keep-alive & syslog</SectionTitle>
+      <SectionTitle>{t("Keep-alive & syslog")}</SectionTitle>
       <div className="setgrid">
         <div className="card" style={{ padding: "var(--s4)" }}>
-          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>Internet keep-alive</div>
+          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>{t("Internet keep-alive")}</div>
           {!keep ? (
             <LoadingBlock />
           ) : (
             <>
               <CheckRow checked={Boolean(keep.UseKeepConnect_bool)} onChange={(v) => { setKeep({ ...keep, UseKeepConnect_bool: v }); setDirty((d) => ({ ...d, keep: true })); }}
-                label="Send keep-alive packets" hint="Stops an idle dial-up/NAT path from being torn down." />
+                label={t("Send keep-alive packets")} hint={t("Stops an idle dial-up/NAT path from being torn down.")} />
               <div className="row2">
-                <Field label="Host">
+                <Field label={t("Host")}>
                   <input className="input mono" value={String(keep.KeepConnectHost_str ?? "")} onChange={(e) => { setKeep({ ...keep, KeepConnectHost_str: e.target.value }); setDirty((d) => ({ ...d, keep: true })); }} spellCheck={false} />
                 </Field>
-                <Field label="Port">
+                <Field label={t("Port")}>
                   <input className="input mono" type="number" value={Number(keep.KeepConnectPort_u32) || 80} onChange={(e) => { setKeep({ ...keep, KeepConnectPort_u32: Number(e.target.value) }); setDirty((d) => ({ ...d, keep: true })); }} />
                 </Field>
               </div>
               <div className="row2">
-                <Field label="Protocol">
+                <Field label={t("Protocol")}>
                   <select className="select" value={Number(keep.KeepConnectProtocol_u32) || 0} onChange={(e) => { setKeep({ ...keep, KeepConnectProtocol_u32: Number(e.target.value) }); setDirty((d) => ({ ...d, keep: true })); }}>
                     <option value={0}>TCP</option>
                     <option value={1}>UDP</option>
                   </select>
                 </Field>
-                <Field label="Interval (s)">
+                <Field label={t("Interval (s)")}>
                   <input className="input mono" type="number" min={5} value={Number(keep.KeepConnectInterval_u32) || 50} onChange={(e) => { setKeep({ ...keep, KeepConnectInterval_u32: Number(e.target.value) }); setDirty((d) => ({ ...d, keep: true })); }} />
                 </Field>
               </div>
@@ -1082,8 +1092,8 @@ function KeepSyslogCard() {
                     KeepConnectInterval_u32: Number(keep.KeepConnectInterval_u32) || 50,
                   });
                   setDirty((d) => ({ ...d, keep: false }));
-                }, "Keep-alive saved.")}>
-                  Save keep-alive
+                }, t("Keep-alive saved."))}>
+                  {t("Save keep-alive")}
                 </button>
               )}
             </>
@@ -1091,21 +1101,21 @@ function KeepSyslogCard() {
         </div>
 
         <div className="card" style={{ padding: "var(--s4)" }}>
-          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>Syslog forwarding</div>
+          <div className="section__t" style={{ marginBottom: "var(--s3)" }}>{t("Syslog forwarding")}</div>
           {!syslog ? (
             <LoadingBlock />
           ) : (
             <>
-              <Field label="Mode">
+              <Field label={t("Mode")}>
                 <select className="select" value={Number(syslog.SaveType_u32) || 0} onChange={(e) => { setSyslog({ ...syslog, SaveType_u32: Number(e.target.value) }); setDirty((d) => ({ ...d, syslog: true })); }}>
                   {SYSLOG_MODES.map((m, i) => <option key={i} value={i}>{m}</option>)}
                 </select>
               </Field>
               <div className="row2">
-                <Field label="Syslog host">
+                <Field label={t("Syslog host")}>
                   <input className="input mono" value={String(syslog.Hostname_str ?? "")} onChange={(e) => { setSyslog({ ...syslog, Hostname_str: e.target.value }); setDirty((d) => ({ ...d, syslog: true })); }} spellCheck={false} />
                 </Field>
-                <Field label="Port">
+                <Field label={t("Port")}>
                   <input className="input mono" type="number" value={Number(syslog.Port_u32) || 514} onChange={(e) => { setSyslog({ ...syslog, Port_u32: Number(e.target.value) }); setDirty((d) => ({ ...d, syslog: true })); }} />
                 </Field>
               </div>
@@ -1117,8 +1127,8 @@ function KeepSyslogCard() {
                     Port_u32: Number(syslog.Port_u32) || 514,
                   });
                   setDirty((d) => ({ ...d, syslog: false }));
-                }, "Syslog settings saved.")}>
-                  Save syslog
+                }, t("Syslog settings saved."))}>
+                  {t("Save syslog")}
                 </button>
               )}
             </>
@@ -1132,42 +1142,41 @@ function KeepSyslogCard() {
 /* ── configuration file ───────────────────────────────────────────────────── */
 
 function ConfigCard() {
+  const t = useT();
   const [restoring, setRestoring] = useState<File | null>(null);
   const { guard } = useToast();
 
   return (
     <section id="ss-config">
-      <SectionTitle>Configuration file</SectionTitle>
+      <SectionTitle>{t("Configuration file")}</SectionTitle>
       <div className="card" style={{ padding: "var(--s4)" }}>
         <div className="lede" style={{ marginBottom: "var(--s3)" }}>
-          The server's entire state, as the vpn_server.config it keeps on disk. Download it as a
-          backup; restoring replaces everything and restarts the service.
+          {t("The server's entire state, as the vpn_server.config it keeps on disk. Download it as a backup; restoring replaces everything and restarts the service.")}
         </div>
         <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap" }}>
           <button className="btn" onClick={() => void guard(async () => {
             const r = await api.getConfig();
             downloadBase64(r.filename || "vpn_server.config", r.config_base64, "text/plain");
-          }, "Configuration downloaded.")}>
-            <IconDownload size={14} /> Download backup
+          }, t("Configuration downloaded."))}>
+            <IconDownload size={14} /> {t("Download backup")}
           </button>
           <label className="btn">
-            <IconUpload size={14} /> Restore from file
+            <IconUpload size={14} /> {t("Restore from file")}
             <input type="file" hidden onChange={(e) => setRestoring(e.target.files?.[0] ?? null)} />
           </label>
-          <button className="btn" onClick={() => void guard(() => api.flush(), "Volatile state written to disk.")}>
-            Flush to disk
+          <button className="btn" onClick={() => void guard(() => api.flush(), t("Volatile state written to disk."))}>
+            {t("Flush to disk")}
           </button>
         </div>
       </div>
       {restoring && (
         <ConfirmSheet
-          title="Restore this configuration?"
-          verb="Restore & restart"
+          title={t("Restore this configuration?")}
+          verb={t("Restore & restart")}
           typed="restore"
           body={
             <>
-              <b>{restoring.name}</b> replaces the entire configuration of this VPN server — hubs,
-              users, everything — and the server restarts to load it.
+              <b>{restoring.name}</b> {t("replaces the entire configuration of this VPN server — hubs, users, everything — and the server restarts to load it.")}
             </>
           }
           onClose={() => setRestoring(null)}
@@ -1184,33 +1193,32 @@ function ConfigCard() {
 /* ── the danger zone ──────────────────────────────────────────────────────── */
 
 function DangerZone() {
+  const t = useT();
   const [confirm, setConfirm] = useState<null | "reboot" | "crash">(null);
   return (
     <section id="ss-danger" className="danger">
-      <SectionTitle>Danger zone</SectionTitle>
+      <SectionTitle>{t("Danger zone")}</SectionTitle>
       <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap" }}>
-        <button className="btn" onClick={() => setConfirm("reboot")}>Restart VPN service</button>
-        <button className="btn" onClick={() => setConfirm("crash")}>Force-crash process</button>
+        <button className="btn" onClick={() => setConfirm("reboot")}>{t("Restart VPN service")}</button>
+        <button className="btn" onClick={() => setConfirm("crash")}>{t("Force-crash process")}</button>
       </div>
       {confirm === "reboot" && (
         <ConfirmSheet
-          title="Restart the VPN server service?"
-          verb="Restart"
-          body={<>Every session drops and reconnects. Takes a few seconds.</>}
+          title={t("Restart the VPN server service?")}
+          verb={t("Restart")}
+          body={<>{t("Every session drops and reconnects. Takes a few seconds.")}</>}
           onClose={() => setConfirm(null)}
           onConfirm={() => api.reboot().then(() => undefined)}
         />
       )}
       {confirm === "crash" && (
         <ConfirmSheet
-          title="Force-crash the VPN server?"
-          verb="Crash it"
+          title={t("Force-crash the VPN server?")}
+          verb={t("Crash it")}
           typed="crash"
           body={
             <>
-              The API's most violent call: the process aborts itself without saving anything.
-              Only for a server too wedged to answer a normal restart. If it runs under systemd
-              it will come back on its own.
+              {t("The API's most violent call: the process aborts itself without saving anything. Only for a server too wedged to answer a normal restart. If it runs under systemd it will come back on its own.")}
             </>
           }
           onClose={() => setConfirm(null)}

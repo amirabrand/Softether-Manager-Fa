@@ -551,8 +551,10 @@ class TlsManager:
     # -- lifecycle --------------------------------------------------------------
 
     def start(self, app: Any) -> None:
-        if self._thread is not None:
+        if self._thread is not None and self._thread.is_alive():
             return
+        self._stop.clear()
+        self._wake.clear()
         self._app = app
         self._thread = threading.Thread(target=self._loop, daemon=True, name="tls-manager")
         self._thread.start()
@@ -560,8 +562,9 @@ class TlsManager:
     def stop(self) -> None:
         self._stop.set()
         self._wake.set()
-        if self._thread is not None:
-            self._thread.join(timeout=15)
+        thread, self._thread = self._thread, None
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=15)
         self._stop_listeners()
 
     def apply(self) -> None:

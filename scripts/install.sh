@@ -172,7 +172,7 @@ require_value() {
 # require_value would reject it as a missing value -- which it is not.
 require_present() {
   local flag="$1" count="$2"
-  if (( count < 2 )); then
+  if (( count < 2 )) || [[ "${2-}" == --* ]]; then
     usage
     fail "$EXIT_BAD_ARGUMENTS" "$flag requires a value; pass '' for none."
   fi
@@ -862,6 +862,26 @@ if (( UPGRADE_EXISTING == 1 )) && [[ -f "$ENV_PATH" ]]; then
   grep -q '^SEM_CLI_ENV_PATH=' "$ENV_PATH" || printf 'SEM_CLI_ENV_PATH=%s\n' "$CLI_ENV_PATH" >> "$ENV_PATH"
 else
   write_env_file
+  # A fresh install over a data directory that survived an uninstall -- the
+  # database still carries the previous web path, and the panel trusts its
+  # database over the seed in the env file, so the panel would come up at the
+  # OLD address while this installer probes the NEW one and gives up. Drop the
+  # stale row so the fresh env file is what takes effect.
+  if [[ -f "$DATA_DIR/manager.db" ]] && [[ "$WEB_PATH_GIVEN" == 1 ]]; then
+    step "Re-pointing the surviving database at the new web path"
+    "$VENV_PYTHON" - "$DATA_DIR/manager.db" "$WEB_PATH" <<'PYRESET' || warn "Could not update the old database; if the panel answers on the previous path, that is why."
+import sqlite3, sys
+
+db_path, web_path = sys.argv[1], sys.argv[2]
+conn = sqlite3.connect(db_path)
+try:
+    conn.execute('DELETE FROM "Setting" WHERE "SettingKey" = \'web_path\'')
+    conn.commit()
+finally:
+    conn.close()
+print(f"web_path seed reset to '{web_path or '(root)'}'")
+PYRESET
+  fi
 fi
 
 # Where the panel actually serves is asked of the panel, not assumed from the

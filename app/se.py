@@ -64,22 +64,25 @@ def get_client() -> softether.SoftEtherClient:
     with _client_lock:
         if _client is not None:
             return _client
-    info = connection()
-    if not info["configured"]:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "The panel is not connected to SoftEther yet. Set the management "
-                "port and administrator password first.",
-                "se_error": "NotConfigured",
-                "se_code": None,
-            },
-        )
-    client = build_client(info["host"], info["port"], stored_password())
-    with _client_lock:
-        if _client is None:
-            _client = client
-        return _client
+        # Build the client inside the lock. Building does no I/O (the client
+        # connects lazily on first RPC), so holding the lock costs nothing and
+        # closes the race where a thread reads stale connection facts after a
+        # concurrent set_connection() + drop_client() and installs a client
+        # pointing at the old host/port/password forever.
+        info = connection()
+        if not info["configured"]:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "The panel is not connected to SoftEther yet. Set the management "
+                    "port and administrator password first.",
+                    "se_error": "NotConfigured",
+                    "se_code": None,
+                },
+            )
+        client = build_client(info["host"], info["port"], stored_password())
+        _client = client
+        return client
 
 
 def drop_client() -> None:

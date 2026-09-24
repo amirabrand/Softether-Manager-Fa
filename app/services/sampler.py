@@ -33,14 +33,19 @@ _TICK = 1.0
 
 def start() -> None:
     global _thread
-    if _thread is not None:
+    if _thread is not None and _thread.is_alive():
         return
+    _stop.clear()
     _thread = threading.Thread(target=_loop, daemon=True, name="traffic-sampler")
     _thread.start()
 
 
 def stop() -> None:
+    global _thread
     _stop.set()
+    thread, _thread = _thread, None
+    if thread is not None and thread is not threading.current_thread():
+        thread.join(timeout=5.0)
 
 
 def _loop() -> None:
@@ -394,14 +399,14 @@ def _prune(db: Any) -> None:
         session_days = 30
     db.execute(
         'DELETE FROM "VpnSessionSample" WHERE "EndedDate" IS NOT NULL '
-        "AND \"EndedDate\" < datetime('now', :window)",
+        "AND julianday(\"EndedDate\") < julianday('now', :window)",
         {"window": f"-{session_days} days"},
     )
     # The per-session series shares the session's retention. Dated pruning
     # first, then anything orphaned by a session row that has just gone.
     db.execute(
         'DELETE FROM "VpnSessionTrafficSample" '
-        "WHERE \"SampledDate\" < datetime('now', :window)",
+        "WHERE julianday(\"SampledDate\") < julianday('now', :window)",
         {"window": f"-{session_days} days"},
     )
     db.execute(

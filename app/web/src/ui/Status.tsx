@@ -10,6 +10,8 @@
  * same value does not restart it and make the dot stutter.
  */
 
+import { useT } from "../lib/i18n";
+
 export type Kind = "ok" | "warn" | "err" | "busy" | "idle";
 
 /** Liveness of a managed SoftEther server, as the probe reports it. */
@@ -57,11 +59,13 @@ export function Pill({ kind, label }: { kind: Kind; label: string }) {
 }
 
 export function ServerStatusPill({ status }: { status: string }) {
-  return <Pill kind={SERVER_KIND[status] ?? "idle"} label={status} />;
+  const t = useT();
+  return <Pill kind={SERVER_KIND[status] ?? "idle"} label={t(status)} />;
 }
 
 export function JobStatusPill({ status }: { status: string }) {
-  return <Pill kind={JOB_KIND[status] ?? "idle"} label={status} />;
+  const t = useT();
+  return <Pill kind={JOB_KIND[status] ?? "idle"} label={t(status)} />;
 }
 
 /** Online / offline for hubs, sessions, links -- anything with a boolean life. */
@@ -70,5 +74,6 @@ export function OnlinePill({ online, onLabel = "online", offLabel = "offline" }:
   onLabel?: string;
   offLabel?: string;
 }) {
-  return <Pill kind={online ? "ok" : "idle"} label={online ? onLabel : offLabel} />;
+  const t = useT();
+  return <Pill kind={online ? "ok" : "idle"} label={online ? t(onLabel) : t(offLabel)} />;
 }

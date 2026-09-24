@@ -7,6 +7,7 @@ import { api, type Wire } from "../../lib/api";
 import { navigate } from "../../lib/router";
 import { HUB_TYPES } from "../../lib/se";
 import { useToast } from "../../lib/toast";
+import { useT } from "../../lib/i18n";
 import { IconTrash } from "../../ui/Icon";
 
 /**
@@ -32,15 +33,17 @@ export function HubSettings({ hub, onChanged }: { hub: string; onChanged: () => 
 /** The hub's traffic ceiling. Reached, the hub goes offline -- which is a
  *  change to the header's online pill, so the page is told to re-read. */
 function QuotaSection({ hub, onChanged }: { hub: string; onChanged: () => void }) {
+  const t = useT();
   return (
     <>
-      <SectionTitle>Traffic limit</SectionTitle>
+      <SectionTitle>{t("Traffic limit")}</SectionTitle>
       <QuotaCard hub={hub} onChanged={onChanged} />
     </>
   );
 }
 
 function BasicsCard({ hub, onChanged }: { hub: string; onChanged: () => void }) {
+  const t = useT();
   const [data, setData] = useState<Wire | null>(null);
   const [password, setPassword] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -72,31 +75,31 @@ function BasicsCard({ hub, onChanged }: { hub: string; onChanged: () => void }) 
       setDirty(false);
       setPassword("");
       onChanged();
-    }, "Hub settings saved.");
+    }, t("Hub settings saved."));
 
   return (
     <>
-      <SectionTitle>Hub</SectionTitle>
+      <SectionTitle>{t("Hub")}</SectionTitle>
       <div className="card" style={{ padding: "var(--s4)", maxWidth: 640 }}>
         <div className="row2">
-          <Field label="Max concurrent sessions" hint="0 means unlimited.">
+          <Field label={t("Max concurrent sessions")} hint={t("0 means unlimited.")}>
             <input className="input mono" type="number" min={0} value={Number(data.MaxSession_u32) || 0} onChange={(e) => set("MaxSession_u32", Number(e.target.value))} />
           </Field>
-          <Field label="Hub type" hint="Static/dynamic matter only in a cluster.">
+          <Field label={t("Hub type")} hint={t("Static/dynamic matter only in a cluster.")}>
             <select className="select" value={Number(data.HubType_u32) || 0} onChange={(e) => set("HubType_u32", Number(e.target.value))}>
               {Object.entries(HUB_TYPES).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
+                <option key={v} value={v}>{t(l)}</option>
               ))}
             </select>
           </Field>
         </div>
         <CheckRow checked={Boolean(data.NoEnum_bool)} onChange={(v) => set("NoEnum_bool", v)}
-          label="Hide from anonymous enumeration" hint="Clients listing hubs before signing in do not see this one." />
-        <Field label="Hub admin password" hint="Only sent when you type a new one. Lets someone administer just this hub.">
+          label={t("Hide from anonymous enumeration")} hint={t("Clients listing hubs before signing in do not see this one.")} />
+        <Field label={t("Hub admin password")} hint={t("Only sent when you type a new one. Lets someone administer just this hub.")}>
           <input className="input" type="password" value={password} onChange={(e) => { setPassword(e.target.value); setDirty(true); }} autoComplete="off" />
         </Field>
         {dirty && (
-          <button className="btn btn--primary" onClick={() => void save()}>Save hub settings</button>
+          <button className="btn btn--primary" onClick={() => void save()}>{t("Save hub settings")}</button>
         )}
       </div>
     </>
@@ -124,6 +127,7 @@ const PACKET_KINDS = [
 ];
 
 function LogCard({ hub }: { hub: string }) {
+  const t = useT();
   const [data, setData] = useState<Wire | null>(null);
   const [dirty, setDirty] = useState(false);
   const { guard } = useToast();
@@ -152,32 +156,32 @@ function LogCard({ hub }: { hub: string }) {
         PacketLogConfig_u32: packetConfig,
       });
       setDirty(false);
-    }, "Log settings saved.");
+    }, t("Log settings saved."));
 
   return (
     <>
-      <SectionTitle>Logging</SectionTitle>
+      <SectionTitle>{t("Logging")}</SectionTitle>
       <div className="card" style={{ padding: "var(--s4)", maxWidth: 640 }}>
         <CheckRow checked={Boolean(data.SaveSecurityLog_bool)} onChange={(v) => set("SaveSecurityLog_bool", v)}
-          label="Security log" hint="Logins, disconnections, administrative changes." />
+          label={t("Security log")} hint={t("Logins, disconnections, administrative changes.")} />
         {Boolean(data.SaveSecurityLog_bool) && (
-          <Field label="Rotate security log">
+          <Field label={t("Rotate security log")}>
             <select className="select" value={Number(data.SecurityLogSwitchType_u32) || 0} onChange={(e) => set("SecurityLogSwitchType_u32", Number(e.target.value))}>
-              {SWITCH_TYPES.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
+              {SWITCH_TYPES.map((s) => <option key={s.v} value={s.v}>{t(s.l)}</option>)}
             </select>
           </Field>
         )}
         <CheckRow checked={Boolean(data.SavePacketLog_bool)} onChange={(v) => set("SavePacketLog_bool", v)}
-          label="Packet log" hint="Per-packet records — powerful and heavy. Choose kinds below." />
+          label={t("Packet log")} hint={t("Per-packet records — powerful and heavy. Choose kinds below.")} />
         {Boolean(data.SavePacketLog_bool) && (
           <>
-            <Field label="Rotate packet log">
+            <Field label={t("Rotate packet log")}>
               <select className="select" value={Number(data.PacketLogSwitchType_u32) || 0} onChange={(e) => set("PacketLogSwitchType_u32", Number(e.target.value))}>
-                {SWITCH_TYPES.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
+                {SWITCH_TYPES.map((s) => <option key={s.v} value={s.v}>{t(s.l)}</option>)}
               </select>
             </Field>
             {PACKET_KINDS.map((k) => (
-              <Field key={k.i} label={k.l}>
+              <Field key={k.i} label={t(k.l)}>
                 <div className="seg">
                   {["off", "headers", "full"].map((lbl, v) => (
                     <button
@@ -188,7 +192,7 @@ function LogCard({ hub }: { hub: string }) {
                         set("PacketLogConfig_u32", packetConfig);
                       }}
                     >
-                      {lbl}
+                      {t(lbl)}
                     </button>
                   ))}
                 </div>
@@ -196,13 +200,14 @@ function LogCard({ hub }: { hub: string }) {
             ))}
           </>
         )}
-        {dirty && <button className="btn btn--primary" onClick={() => void save()}>Save log settings</button>}
+        {dirty && <button className="btn btn--primary" onClick={() => void save()}>{t("Save log settings")}</button>}
       </div>
     </>
   );
 }
 
 function MessageCard({ hub }: { hub: string }) {
+  const t = useT();
   const [message, setMessage] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const { guard } = useToast();
@@ -217,17 +222,17 @@ function MessageCard({ hub }: { hub: string }) {
   if (message === null) return null;
   return (
     <>
-      <SectionTitle>Message of the day</SectionTitle>
+      <SectionTitle>{t("Message of the day")}</SectionTitle>
       <div className="card" style={{ padding: "var(--s4)", maxWidth: 640 }}>
-        <Field label="Shown to clients when they connect" hint="Empty shows nothing.">
+        <Field label={t("Shown to clients when they connect")} hint={t("Empty shows nothing.")}>
           <textarea className="textarea" rows={4} value={message} onChange={(e) => { setMessage(e.target.value); setDirty(true); }} />
         </Field>
         {dirty && (
           <button
             className="btn btn--primary"
-            onClick={() => void guard(() => api.setHubMsg(hub, message), "Message saved.").then(() => setDirty(false))}
+            onClick={() => void guard(() => api.setHubMsg(hub, message), t("Message saved.")).then(() => setDirty(false))}
           >
-            Save message
+            {t("Save message")}
           </button>
         )}
       </div>
@@ -241,6 +246,7 @@ function MessageCard({ hub }: { hub: string }) {
  * list itself, editable in place, with the reference one click away.
  */
 function OptionsCard({ hub, kind }: { hub: string; kind: "admin" | "ext" }) {
+  const t = useT();
   const [items, setItems] = useState<Wire[] | null>(null);
   const [dirty, setDirty] = useState(false);
   const [open, setOpen] = useState(false);
@@ -260,7 +266,7 @@ function OptionsCard({ hub, kind }: { hub: string; kind: "admin" | "ext" }) {
       const body = { AdminOptionList: items.map((i) => ({ Name_str: i.Name_str, Value_u32: Number(i.Value_u32) || 0 })) };
       await (kind === "admin" ? api.setAdminOptions(hub, body) : api.setExtOptions(hub, body));
       setDirty(false);
-    }, "Options saved.");
+    }, t("Options saved."));
 
   return (
     <>
@@ -268,18 +274,18 @@ function OptionsCard({ hub, kind }: { hub: string; kind: "admin" | "ext" }) {
         count={items.length}
         actions={
           <button className="btn btn--sm" onClick={() => setOpen((o) => !o)}>
-            {open ? "Collapse" : "Expand"}
+            {open ? t("Collapse") : t("Expand")}
           </button>
         }
       >
-        {kind === "admin" ? "Administration options" : "Extended options"}
+        {kind === "admin" ? t("Administration options") : t("Extended options")}
       </SectionTitle>
       {open && (
         <div className="card" style={{ padding: "var(--s4)" }}>
           <div className="lede" style={{ marginBottom: "var(--s3)" }}>
             {kind === "admin"
-              ? "Limits on what a hub administrator may do. Non-zero enables the named restriction."
-              : "Per-hub behaviour switches, exactly as SoftEther names them."}
+              ? t("Limits on what a hub administrator may do. Non-zero enables the named restriction.")
+              : t("Per-hub behaviour switches, exactly as SoftEther names them.")}
           </div>
           <div className="optgrid">
             {items.map((item, index) => (
@@ -299,10 +305,10 @@ function OptionsCard({ hub, kind }: { hub: string; kind: "admin" | "ext" }) {
               </label>
             ))}
           </div>
-          {items.length === 0 && <Empty title="the server reports no options" />}
+          {items.length === 0 && <Empty title={t("the server reports no options")} />}
           {dirty && (
             <button className="btn btn--primary" style={{ marginTop: "var(--s3)" }} onClick={() => void save()}>
-              Save options
+              {t("Save options")}
             </button>
           )}
         </div>
@@ -312,28 +318,29 @@ function OptionsCard({ hub, kind }: { hub: string; kind: "admin" | "ext" }) {
 }
 
 function DangerCard({ hub }: { hub: string }) {
+  const t = useT();
   const [deleting, setDeleting] = useState(false);
   const { push } = useToast();
   return (
     <div className="danger">
       <button className="btn btn--ghost" onClick={() => setDeleting(true)}>
-        <IconTrash size={14} /> Delete this hub
+        <IconTrash size={14} /> {t("Delete this hub")}
       </button>
       {deleting && (
         <ConfirmSheet
-          title={`Delete hub ${hub}?`}
-          verb="Delete hub"
+          title={t("Delete hub {name}?", { name: hub })}
+          verb={t("Delete hub")}
           typed={hub}
           body={
             <>
-              Every user, group, session, rule and setting inside <b>{hub}</b> is destroyed with
-              it. There is no undo.
+              {t("Every user, group, session, rule and setting inside")} <b>{hub}</b>{" "}
+              {t("is destroyed with it. There is no undo.")}
             </>
           }
           onClose={() => setDeleting(false)}
           onConfirm={async () => {
             await api.deleteHub(hub);
-            push("ok", `Hub ${hub} deleted.`);
+            push("ok", t("Hub {name} deleted.", { name: hub }));
             navigate(`/`);
           }}
         />

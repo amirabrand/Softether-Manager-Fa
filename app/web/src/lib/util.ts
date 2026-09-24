@@ -1,5 +1,27 @@
 /** Formatting helpers. Machine values render mono; these make them short. */
 
+/** The panel language, mirrored here by the i18n provider so these plain
+ *  functions can localize their few human words and pick a locale for dates
+ *  without needing React. */
+let currentLang: "fa" | "en" = "fa";
+
+export function setCurrentLang(lang: "fa" | "en"): void {
+  currentLang = lang;
+}
+
+const WORDS: Record<string, Record<"fa" | "en", string>> = {
+  "never": { fa: "هرگز", en: "never" },
+  "just now": { fa: "همین حالا", en: "just now" },
+  "{n}m ago": { fa: "{n} دقیقه پیش", en: "{n}m ago" },
+  "{n}h ago": { fa: "{n} ساعت پیش", en: "{n}h ago" },
+  "{n}d ago": { fa: "{n} روز پیش", en: "{n}d ago" },
+};
+
+function word(key: string, n?: number): string {
+  const template = WORDS[key]?.[currentLang] ?? key;
+  return n === undefined ? template : template.replace("{n}", String(n));
+}
+
 const UNITS = ["B", "KB", "MB", "GB", "TB", "PB"];
 
 export function formatBytes(n: number | undefined | null): string {
@@ -35,10 +57,10 @@ export function formatDuration(seconds: number): string {
 
 /** SoftEther's zero dates mean "never"; render them as such. */
 export function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "never";
+  if (!iso) return word("never");
   const d = new Date(iso);
-  if (!isFinite(d.getTime()) || d.getFullYear() < 1990) return "never";
-  return d.toLocaleString(undefined, {
+  if (!isFinite(d.getTime()) || d.getFullYear() < 1990) return word("never");
+  return d.toLocaleString(currentLang === "fa" ? "fa-IR-u-ca-gregory" : undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -48,14 +70,14 @@ export function formatDate(iso: string | null | undefined): string {
 }
 
 export function timeAgo(iso: string | null | undefined): string {
-  if (!iso) return "never";
+  if (!iso) return word("never");
   const then = new Date(iso).getTime();
-  if (!isFinite(then) || new Date(iso).getFullYear() < 1990) return "never";
+  if (!isFinite(then) || new Date(iso).getFullYear() < 1990) return word("never");
   const s = Math.max(0, (Date.now() - then) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  if (s < 60) return word("just now");
+  if (s < 3600) return word("{n}m ago", Math.floor(s / 60));
+  if (s < 86400) return word("{n}h ago", Math.floor(s / 3600));
+  return word("{n}d ago", Math.floor(s / 86400));
 }
 
 export function classNames(...parts: (string | false | null | undefined)[]): string {

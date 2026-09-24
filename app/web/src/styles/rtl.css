@@ -1,0 +1,104 @@
+/*
+ * RTL — the Persian sheet.
+ *
+ * The layout is written against logical properties (flex, gap, text-align:
+ * start/end), so `dir="rtl"` on <html> already mirrors almost everything.
+ * This file repairs the few things that cannot flip by themselves:
+ *
+ *   · machine text — addresses, cipher names, log lines, hex, version numbers
+ *     — keeps its own direction inside an RTL paragraph;
+ *   · chevrons and arrows that point at where navigation goes are mirrored;
+ *   · the extrusion shadow system reads light from the top-left; in RTL it is
+ *     flipped so the material stays consistent with the mirrored geometry.
+ */
+
+/* ── machine text keeps LTR ─────────────────────────────────────────────── */
+html.rtl .mono,
+html.rtl .mono-ltr,
+html.rtl code,
+html.rtl pre,
+html.rtl kbd {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* A table cell holding an address or a hash: isolate the value, keep the
+ * column's text-align decision. */
+html.rtl td .mono,
+html.rtl .cell-mono {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* ── directional glyphs ─────────────────────────────────────────────────── */
+/* Chevron arrows in menu rows and "back" affordances point the other way. */
+html.rtl .chev-flip,
+html.rtl .navitem .chev {
+  transform: scaleX(-1);
+}
+
+/* ── the extrusion system ───────────────────────────────────────────────── */
+/* Light was modelled falling from the top-left; mirror it so cards lit from
+ * the same side as the reading order. */
+html.rtl {
+  --nm-raise:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    8px -8px 20px rgb(255 255 255 / 0.035),
+    -10px 12px 26px rgb(0 0 0 / 0.5);
+  --nm-raise-sm:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    4px -4px 10px rgb(255 255 255 / 0.035),
+    -5px 6px 14px rgb(0 0 0 / 0.45);
+  --nm-inset:
+    inset -4px 4px 9px rgb(0 0 0 / 0.5),
+    inset 3px -3px 8px rgb(255 255 255 / 0.035);
+  --nm-inset-sm:
+    inset -2px 2px 5px rgb(0 0 0 / 0.5),
+    inset 2px -2px 5px rgb(255 255 255 / 0.035);
+  --card-grad: linear-gradient(210deg, #21252c, #191c21);
+}
+
+:root[data-theme="light"] html.rtl,
+html.rtl[data-theme="light"] {
+  --card-grad: linear-gradient(210deg, #ffffff, #e4e8f0);
+}
+
+/* ── type adjustments for Persian ───────────────────────────────────────── */
+/* Vazirmatn runs taller than Manrope at the same em; a hair more leading and
+ * a slightly smaller size on the biggest titles keeps the hierarchy even. */
+html.rtl {
+  letter-spacing: 0;
+}
+
+html.rtl body {
+  line-height: 1.7;
+}
+
+html.rtl .t-page,
+html.rtl .page-title {
+  line-height: 1.5;
+}
+
+/* Persian headings set slightly smaller: the script is denser per glyph. */
+html.rtl h1,
+html.rtl h2,
+html.rtl h3 {
+  letter-spacing: 0;
+}
+
+/* Small caps / uppercase treatments are meaningless for Persian; keep the
+ * same visual weight by leaving case rules to apply to Latin fragments only. */
+html.rtl .overline,
+html.rtl .eyebrow {
+  text-transform: none;
+}
+
+/* ── bits that must never flip ──────────────────────────────────────────── */
+html.rtl .no-flip,
+html.rtl .term__body,
+html.rtl .console__result,
+html.rtl .logview,
+html.rtl .logpre {
+  direction: ltr;
+  text-align: left;
+}

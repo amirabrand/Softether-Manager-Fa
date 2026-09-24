@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useT } from "../lib/i18n";
 import { BrandMark } from "../ui/Icon";
+import { LangToggle } from "../components/AppShell";
 
 /**
  * Signing in -- and the one screen that comes before it.
@@ -16,6 +18,7 @@ import { BrandMark } from "../ui/Icon";
  */
 export function Login() {
   const { login, setup, needsSetup } = useAuth();
+  const t = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -26,7 +29,7 @@ export function Login() {
     e.preventDefault();
     setError(null);
     if (needsSetup && password !== confirm) {
-      setError("The two passwords do not match");
+      setError(t("The two passwords do not match"));
       return;
     }
     setBusy(true);
@@ -34,7 +37,7 @@ export function Login() {
       if (needsSetup) await setup(username.trim(), password);
       else await login(username.trim(), password);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(err instanceof ApiError ? err.message : t("Something went wrong"));
     } finally {
       setBusy(false);
     }
@@ -42,15 +45,18 @@ export function Login() {
 
   return (
     <div className="auth">
+      <div className="auth__lang">
+        <LangToggle />
+      </div>
       <div className="auth__card">
         <div className="auth__mark">
           <BrandMark size={38} />
           <div>
-            <div className="auth__t">{needsSetup ? "Set up this panel" : "SoftEther Manager"}</div>
+            <div className="auth__t">{needsSetup ? t("Set up this panel") : t("SoftEther Manager")}</div>
             <div className="auth__s">
               {needsSetup
-                ? "No account exists yet. The first one you create signs in from now on."
-                : "Sign in to manage your VPN servers"}
+                ? t("No account exists yet. The first one you create signs in from now on.")
+                : t("Sign in to manage your VPN servers")}
             </div>
           </div>
         </div>
@@ -59,7 +65,7 @@ export function Login() {
           {error && <div className="alert alert--err">{error}</div>}
           <form onSubmit={submit}>
             <div className="field">
-              <label htmlFor="u">Username</label>
+              <label htmlFor="u">{t("Username")}</label>
               <input
                 id="u"
                 className="input mono"
@@ -76,7 +82,7 @@ export function Login() {
               />
             </div>
             <div className="field">
-              <label htmlFor="p">Password</label>
+              <label htmlFor="p">{t("Password")}</label>
               <input
                 id="p"
                 className="input"
@@ -91,7 +97,7 @@ export function Login() {
             </div>
             {needsSetup && (
               <div className="field">
-                <label htmlFor="p2">Confirm password</label>
+                <label htmlFor="p2">{t("Confirm password")}</label>
                 <input
                   id="p2"
                   className="input"
@@ -107,7 +113,7 @@ export function Login() {
             )}
             <button className="btn btn--primary btn--block" disabled={busy} type="submit">
               {busy && <span className="spin" />}
-              {needsSetup ? "Create account" : "Sign in"}
+              {needsSetup ? t("Create account") : t("Sign in")}
             </button>
           </form>
         </div>

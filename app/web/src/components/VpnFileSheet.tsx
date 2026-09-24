@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Wire } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { useToast } from "../lib/toast";
 import { downloadText } from "../lib/util";
 import { IconDownload } from "../ui/Icon";
@@ -44,6 +45,7 @@ export function VpnFileSheet({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { push } = useToast();
+  const t = useT();
 
   useEffect(() => {
     void api
@@ -108,7 +110,7 @@ export function VpnFileSheet({
         filename: filename.trim() || undefined,
       });
       downloadText(r.filename, r.content);
-      push("ok", `${r.filename} downloaded.`);
+      push("ok", t("{file} downloaded.", { file: r.filename }));
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -119,15 +121,15 @@ export function VpnFileSheet({
 
   return (
     <Sheet
-      title="Download connection file"
-      subtitle={`${name} · hub ${hub}`}
+      title={t("Download connection file")}
+      subtitle={t("{name} · hub {hub}", { name, hub })}
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn" onClick={onClose}>{t("Cancel")}</button>
           <button className="btn btn--primary" onClick={download} disabled={busy || !host.trim() || !port}>
             {busy ? <span className="spin" /> : <IconDownload size={15} />}
-            Download .vpn
+            {t("Download .vpn")}
           </button>
         </>
       }
@@ -135,21 +137,20 @@ export function VpnFileSheet({
       <div style={{ display: "grid", gap: "var(--s1)" }}>
         {error && <ErrorAlert>{error}</ErrorAlert>}
         <div className="lede" style={{ marginBottom: "var(--s2)" }}>
-          The file imports straight into SoftEther VPN Client — one double-click and the
-          connection exists, pointed at this server and signed in as <b className="mono">{name}</b>.
+          {t("The file imports straight into SoftEther VPN Client — one double-click and the connection exists, pointed at this server and signed in as")} <b className="mono">{name}</b>.
         </div>
         <Field
-          label="Server address"
+          label={t("Server address")}
           hint={
             ddnsFqdn ? (
               <>
-                What the client will dial.{" "}
+                {t("What the client will dial.")}{" "}
                 <button className="linkish" onClick={() => setHost(ddnsFqdn)} type="button">
-                  Use the DDNS name ({ddnsFqdn})
+                  {t("Use the DDNS name ({fqdn})", { fqdn: ddnsFqdn })}
                 </button>
               </>
             ) : (
-              "What the client will dial — this machine's public address."
+              t("What the client will dial — this machine's public address.")
             )
           }
         >
@@ -163,7 +164,7 @@ export function VpnFileSheet({
             inputMode="url"
           />
         </Field>
-        <Field label="Port" hint="Any listening SoftEther port; 443 crosses the most networks.">
+        <Field label={t("Port")} hint={t("Any listening SoftEther port; 443 crosses the most networks.")}>
           {customPort ? (
             <input
               className="input mono"
@@ -186,12 +187,12 @@ export function VpnFileSheet({
               {portChoices.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
-              <option value="custom">other…</option>
+              <option value="custom">{t("other…")}</option>
             </select>
           )}
         </Field>
         <div className="row2">
-          <Field label="File name">
+          <Field label={t("File name")}>
             <input
               className="input mono"
               value={filename}
@@ -202,7 +203,7 @@ export function VpnFileSheet({
               spellCheck={false}
             />
           </Field>
-          <Field label="Connection name in the client">
+          <Field label={t("Connection name in the client")}>
             <input
               className="input mono"
               value={accountName}
@@ -217,19 +218,19 @@ export function VpnFileSheet({
         <CheckRow
           checked={embed}
           onChange={setEmbed}
-          label="Embed the password in the file"
+          label={t("Embed the password in the file")}
           hint={
             credential === null
-              ? "Checking whether the panel holds this user's credential…"
+              ? t("Checking whether the panel holds this user's credential…")
               : credential.available
-                ? "The panel holds this user's credential — it goes in as SoftEther's own hash, no typing needed. Anyone holding the file can connect."
-                : "The panel has not seen this user's password and could not recover it from the server — type it once below and it will be remembered."
+                ? t("The panel holds this user's credential — it goes in as SoftEther's own hash, no typing needed. Anyone holding the file can connect.")
+                : t("The panel has not seen this user's password and could not recover it from the server — type it once below and it will be remembered.")
           }
         />
         {embed && (
           <Field
-            label={credential?.available ? "Password (only to replace the stored one)" : "Password"}
-            hint="Stored hashed, the way the client stores it — never in plain text."
+            label={credential?.available ? t("Password (only to replace the stored one)") : t("Password")}
+            hint={t("Stored hashed, the way the client stores it — never in plain text.")}
           >
             <input
               className="input"
@@ -241,7 +242,7 @@ export function VpnFileSheet({
           </Field>
         )}
         {needsPassword && (
-          <p className="hint hint--err">Without the password the download will be refused — or untick embedding to ship the file without a credential.</p>
+          <p className="hint hint--err">{t("Without the password the download will be refused — or untick embedding to ship the file without a credential.")}</p>
         )}
       </div>
     </Sheet>

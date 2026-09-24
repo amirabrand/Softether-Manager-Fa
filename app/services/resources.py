@@ -236,13 +236,17 @@ class ResourceSampler:
         self._previous_at = 0.0
 
     def start(self) -> None:
-        if not self._available or self._thread is not None:
+        if not self._available or (self._thread is not None and self._thread.is_alive()):
             return
+        self._stop.clear()
         self._thread = threading.Thread(target=self._loop, daemon=True, name="resource-sampler")
         self._thread.start()
 
     def stop(self) -> None:
+        thread, self._thread = self._thread, None
         self._stop.set()
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=5.0)
 
     @staticmethod
     def _settings() -> tuple[bool, float, int]:

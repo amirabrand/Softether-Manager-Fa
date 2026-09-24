@@ -481,8 +481,8 @@ def user_usage(hub: str, name: str, hours: int = 24, user: dict = CurrentUser) -
     hours = max(1, min(hours, 24 * 90))
     rows = get_db().query_all(
         'SELECT "SendBytes", "RecvBytes", "NumLogin", "SampledDate" FROM "UserTrafficSample" '
-        'WHERE "HubName" = :hub AND "UserName" = :name '
-        "AND \"SampledDate\" >= datetime('now', :window) "
+        'WHERE "HubName" = :hub AND LOWER("UserName") = LOWER(:name) '
+        'AND julianday("SampledDate") >= julianday(\'now\', :window) '
         'ORDER BY "SampledDate"',
         {"hub": hub, "name": name, "window": f"-{hours} hours"},
     )
@@ -518,7 +518,7 @@ def hub_traffic(hub: str, hours: int = 24, user: dict = CurrentUser) -> Wire:
     rows = get_db().query_all(
         'SELECT "SendBytes", "RecvBytes", "NumSessions", "SampledDate" FROM "HubTrafficSample" '
         'WHERE "HubName" = :hub '
-        "AND \"SampledDate\" >= datetime('now', :window) "
+        "AND julianday(\"SampledDate\") >= julianday('now', :window) "
         'ORDER BY "SampledDate"',
         {"hub": hub, "window": f"-{hours} hours"},
     )

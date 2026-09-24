@@ -22,6 +22,7 @@ import {
 import { UserSheet } from "../components/UserSheet";
 import { VpnFileSheet } from "../components/VpnFileSheet";
 import { api, type Wire } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { navigate, seg } from "../lib/router";
 import { AUTH_TYPES, isNever, userBytes, userSortValue } from "../lib/se";
 import { formatBytes, formatCount, formatDate, timeAgo } from "../lib/util";
@@ -42,6 +43,7 @@ export function AllUsers() {
   const [vpnFor, setVpnFor] = useState<{ hub: string; name: string } | null>(null);
   const quotas = useQuotaIndex([]);
   const { sort, toggle } = useSort();
+  const t = useT();
   const quotaOf = (u: Wire) =>
     quotas.get(quotaKey("user", String(u.HubName_str), String(u.Name_str)));
   // Transfer is the lifetime counter less whatever a reset put behind us, so
@@ -82,11 +84,17 @@ export function AllUsers() {
   return (
     <div className="page">
       <PageHead
-        title="Users"
-        sub={data ? `${data.users.length} across ${data.hubs.length} hub${data.hubs.length === 1 ? "" : "s"}` : "Every user on this server."}
+        title={t("Users")}
+        sub={
+          data
+            ? data.hubs.length === 1
+              ? t("{users} across 1 hub", { users: data.users.length })
+              : t("{users} across {hubs} hubs", { users: data.users.length, hubs: data.hubs.length })
+            : t("Every user on this server.")
+        }
         actions={
           <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap" }}>
-            <SearchBox value={query} onChange={setQuery} placeholder="name, hub, group, note…" />
+            <SearchBox value={query} onChange={setQuery} placeholder={t("name, hub, group, note…")} />
             <button
               className="btn btn--primary"
               onClick={() => {
@@ -95,7 +103,7 @@ export function AllUsers() {
               }}
               disabled={!data || data.hubs.length === 0}
             >
-              <IconPlus size={15} /> New user
+              <IconPlus size={15} /> {t("New user")}
             </button>
           </div>
         }
@@ -103,17 +111,17 @@ export function AllUsers() {
 
       {data?.errors.map((e) => (
         <div key={e.hub} className="alert alert--warn">
-          Hub <b>{e.hub}</b> could not be listed: {e.error}
+          {t("Hub")} <b>{e.hub}</b> {t("could not be listed:")} {e.error}
         </div>
       ))}
 
       {filtered === null ? (
-        <LoadingBlock label="loading users" />
+        <LoadingBlock label={t("loading users")} />
       ) : filtered.length === 0 ? (
-        <Empty title={query ? "nothing matches" : "no users yet"}>
+        <Empty title={query ? t("nothing matches") : t("no users yet")}>
           {query
-            ? "No user, hub, group or note matches that search."
-            : "A user is one VPN identity, living in one Virtual Hub."}
+            ? t("No user, hub, group or note matches that search.")
+            : t("A user is one VPN identity, living in one Virtual Hub.")}
         </Empty>
       ) : (
         <>
@@ -124,17 +132,17 @@ export function AllUsers() {
                 <table className="dtable">
                   <thead>
                     <tr>
-                      <SortTh sortKey="user" sort={sort} onSort={toggle}>User</SortTh>
-                      <SortTh sortKey="hub" sort={sort} onSort={toggle}>Hub</SortTh>
-                      <SortTh sortKey="status" sort={sort} onSort={toggle} style={{ width: 110 }}>Status</SortTh>
-                      <SortTh sortKey="group" sort={sort} onSort={toggle}>Group</SortTh>
-                      <SortTh sortKey="auth" sort={sort} onSort={toggle}>Auth</SortTh>
-                      <SortTh sortKey="login" sort={sort} onSort={toggle}>Last login</SortTh>
-                      <SortTh sortKey="logins" sort={sort} onSort={toggle} style={{ width: 90 }}>Logins</SortTh>
-                      <SortTh sortKey="transfer" sort={sort} onSort={toggle}>Transfer</SortTh>
-                      <SortTh sortKey="quota" sort={sort} onSort={toggle}>Limit</SortTh>
-                      <SortTh sortKey="expires" sort={sort} onSort={toggle}>Expires</SortTh>
-                      <th className="tact" style={{ width: 96 }} aria-label="Actions" />
+                      <SortTh sortKey="user" sort={sort} onSort={toggle}>{t("User")}</SortTh>
+                      <SortTh sortKey="hub" sort={sort} onSort={toggle}>{t("Hub")}</SortTh>
+                      <SortTh sortKey="status" sort={sort} onSort={toggle} style={{ width: 110 }}>{t("Status")}</SortTh>
+                      <SortTh sortKey="group" sort={sort} onSort={toggle}>{t("Group")}</SortTh>
+                      <SortTh sortKey="auth" sort={sort} onSort={toggle}>{t("Auth")}</SortTh>
+                      <SortTh sortKey="login" sort={sort} onSort={toggle}>{t("Last login")}</SortTh>
+                      <SortTh sortKey="logins" sort={sort} onSort={toggle} style={{ width: 90 }}>{t("Logins")}</SortTh>
+                      <SortTh sortKey="transfer" sort={sort} onSort={toggle}>{t("Transfer")}</SortTh>
+                      <SortTh sortKey="quota" sort={sort} onSort={toggle}>{t("Limit")}</SortTh>
+                      <SortTh sortKey="expires" sort={sort} onSort={toggle}>{t("Expires")}</SortTh>
+                      <th className="tact" style={{ width: 96 }} aria-label={t("Actions")} />
                     </tr>
                   </thead>
                   <tbody>
@@ -155,12 +163,12 @@ export function AllUsers() {
                           <td className="tmono">{formatCount(Number(u.NumLogin_u32))}</td>
                           <td className="tmono">{formatBytes(bytes.send + bytes.recv)}</td>
                           <td><QuotaCell quota={quotaOf(u)} net={bytes} /></td>
-                          <td className="tmono">{isNever(expires as string) ? "never" : formatDate(expires as string)}</td>
+                          <td className="tmono">{isNever(expires as string) ? t("never") : formatDate(expires as string)}</td>
                           <td className="tact">
                             <button
                               className="btn btn--sm btn--ghost"
-                              title="Download .vpn connection file"
-                              aria-label="Download .vpn connection file"
+                              title={t("Download .vpn connection file")}
+                              aria-label={t("Download .vpn connection file")}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setVpnFor({ hub: String(u.HubName_str), name: String(u.Name_str) });
@@ -193,12 +201,12 @@ export function AllUsers() {
                     </div>
                     <div className="spec">
                       <span className="chip chip--brand">{String(u.HubName_str)}</span>
-                      <span className="chip"><i>group</i>{String(u.GroupName_str || "—")}</span>
-                      <span className="chip"><i>data</i>{formatBytes(bytes.send + bytes.recv)}</span>
-                      <span className="chip"><i>seen</i>{timeAgo(u.LastLoginTime_dt as string)}</span>
+                      <span className="chip"><i>{t("group")}</i>{String(u.GroupName_str || "—")}</span>
+                      <span className="chip"><i>{t("data")}</i>{formatBytes(bytes.send + bytes.recv)}</span>
+                      <span className="chip"><i>{t("seen")}</i>{timeAgo(u.LastLoginTime_dt as string)}</span>
                       {quota?.has_limit && (
                         <span className={`chip${quota.blocked ? "" : " chip--brand"}`}>
-                          <i>limit</i>
+                          <i>{t("limit")}</i>
                           {formatBytes(meteredBytes(bytes, quota.metric))} /{" "}
                           {formatBytes(quota.limit_bytes)}
                         </span>

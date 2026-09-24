@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useToast } from "../lib/toast";
+import { useT } from "../lib/i18n";
 
 /**
  * A switch is a claim about the server, so it is never allowed to lie.
@@ -56,6 +57,7 @@ export function useToggle({ value, apply, reload, noun, onWord = "on", offWord =
   const [target, setTarget] = useState<boolean | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const { push } = useToast();
+  const t = useT();
   const alive = useRef(true);
   // The latest callbacks, so a poll that re-created them mid-flight is used
   // for the read-back rather than a stale closure.
@@ -103,23 +105,30 @@ export function useToggle({ value, apply, reload, noun, onWord = "on", offWord =
       setTarget(null);
 
       if (error) {
-        const text = fresh !== null && fresh !== wanted ? `${error} — still ${fresh ? onWord : offWord}.` : error;
+        const state = fresh !== null ? (fresh ? t(onWord) : t(offWord)) : null;
+        const text =
+          fresh !== null && fresh !== wanted
+            ? t("{error} — still {state}.", { error, state: state ?? "" })
+            : error;
         setOutcome({ kind: "err", text, at: Date.now() });
-        push("err", `${noun}: ${text}`);
+        push("err", t("{noun}: {text}", { noun, text }));
         return false;
       }
       if (fresh !== null && fresh !== wanted) {
-        const text = `The server still reports ${noun} ${fresh ? onWord : offWord}.`;
+        const text = t("The server still reports {noun} {state}.", {
+          noun,
+          state: fresh ? t(onWord) : t(offWord),
+        });
         setOutcome({ kind: "err", text, at: Date.now() });
         push("err", text);
         return false;
       }
-      const text = `${noun} ${wanted ? onWord : offWord}.`;
+      const text = t("{noun} {state}.", { noun, state: wanted ? t(onWord) : t(offWord) });
       setOutcome({ kind: "ok", text, at: Date.now() });
       if (!quiet) push("ok", text);
       return true;
     },
-    [target, noun, onWord, offWord, quiet, push],
+    [target, noun, onWord, offWord, quiet, push, t],
   );
 
   return { pending: target !== null, target, outcome, toggle };
@@ -151,11 +160,9 @@ export function Switch({
   word?: boolean;
 }) {
   const busy = Boolean(pending);
-  const text = busy
-    ? `turning ${target ?? !on ? onWord : offWord}…`
-    : on
-      ? onWord
-      : offWord;
+  const t = useT();
+  const state = on ? t(onWord) : t(offWord);
+  const text = busy ? t("turning {word}…", { word: t(target ?? !on ? onWord : offWord) }) : state;
   return (
     <button
       type="button"
@@ -163,7 +170,15 @@ export function Switch({
       aria-checked={on}
       aria-busy={busy || undefined}
       aria-label={label}
-      title={busy ? `${label}: ${text}` : `${label}: ${text} — click to turn ${on ? offWord : onWord}`}
+      title={
+        busy
+          ? `${label}: ${text}`
+          : t("{label}: {text} — click to turn {other}", {
+              label,
+              text,
+              other: t(on ? offWord : onWord),
+            })
+      }
       className={`switch${on ? " switch--on" : ""}${busy ? " switch--busy" : ""}`}
       disabled={disabled || busy}
       onClick={(e) => {
@@ -227,6 +242,7 @@ export function SwitchRow({
   /** Override the click (to confirm first); defaults to `toggle.toggle()`. */
   onToggle?: () => void;
 }) {
+  const t = useT();
   return (
     <div className={`switchrow${on ? " switchrow--on" : ""}${disabled ? " switchrow--off" : ""}`}>
       <div className="switchrow__m">
@@ -242,7 +258,7 @@ export function SwitchRow({
           target={toggle.target}
           disabled={disabled}
           onToggle={onToggle ?? (() => void toggle.toggle())}
-          label={typeof label === "string" ? label : "Switch"}
+          label={typeof label === "string" ? label : t("Switch")}
           onWord={onWord}
           offWord={offWord}
         />

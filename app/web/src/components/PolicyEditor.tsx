@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Wire } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { POLICY_FIELDS, POLICY_GROUPS } from "../lib/se";
 import { formatBytes } from "../lib/util";
 import { CheckRow, Field } from "./bits";
@@ -27,6 +28,7 @@ export function PolicyEditor({
   subject: "user" | "group";
 }) {
   const enabled = Boolean(value.UsePolicy_bool);
+  const t = useT();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Access: true, "Bandwidth & sessions": true });
 
   const set = (key: string, v: unknown) => onChange({ ...value, [key]: v });
@@ -43,11 +45,11 @@ export function PolicyEditor({
       <CheckRow
         checked={enabled}
         onChange={(v) => set("UsePolicy_bool", v)}
-        label="Apply a security policy"
+        label={t("Apply a security policy")}
         hint={
           subject === "user"
-            ? "Off, this user follows the hub defaults (or their group's policy, if the group has one)."
-            : "Off, members of this group follow the hub defaults."
+            ? t("Off, this user follows the hub defaults (or their group's policy, if the group has one).")
+            : t("Off, members of this group follow the hub defaults.")
         }
       />
 
@@ -66,8 +68,8 @@ export function PolicyEditor({
                 onClick={() => setOpenGroups((g) => ({ ...g, [groupName]: !open }))}
                 aria-expanded={open}
               >
-                <span>{groupName}</span>
-                {activeCount > 0 && <span className="chip chip--brand">{activeCount} set</span>}
+                <span>{t(groupName)}</span>
+                {activeCount > 0 && <span className="chip chip--brand">{t("{n} set", { n: activeCount })}</span>}
                 <span className={`rail__chev${open ? " open" : ""}`} style={{ marginInlineStart: "auto" }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6" /></svg>
                 </span>
@@ -80,25 +82,25 @@ export function PolicyEditor({
                         key={f.key}
                         checked={Boolean(value[f.key])}
                         onChange={(v) => set(f.key, v)}
-                        label={f.label}
-                        hint={f.help}
+                        label={t(f.label)}
+                        hint={t(f.help)}
                       />
                     ) : (
                       <Field
                         key={f.key}
                         label={
                           <>
-                            {f.label}
+                            {t(f.label)}
                             {f.unit ? <span className="micro"> · {f.unit}</span> : null}
                           </>
                         }
                         hint={
                           <>
-                            {f.help} 0 = {f.zero}.
+                            {t(f.help)} 0 = {t(f.zero ?? "")}.
                             {(f.key === "policy:MaxUpload_u32" || f.key === "policy:MaxDownload_u32") &&
                               Number(value[f.key]) > 0 && (
                                 <>
-                                  {" "}Currently <b>{formatBytes(Number(value[f.key]))}/s ≈ {((Number(value[f.key]) * 8) / 1_000_000).toFixed(1)} Mbps</b>.
+                                  {" "}{t("Currently")} <b>{formatBytes(Number(value[f.key]))}/s ≈ {((Number(value[f.key]) * 8) / 1_000_000).toFixed(1)} Mbps</b>.
                                 </>
                               )}
                           </>

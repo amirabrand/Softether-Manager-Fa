@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Wire } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { formatBytes } from "../lib/util";
 import { IconChevron, IconCpu, IconDisk, IconMemory, IconSwap, IconTraffic } from "../ui/Icon";
 
@@ -75,13 +76,14 @@ function MetricTitle({ icon, children }: { icon: React.ReactNode; children: Reac
 }
 
 function Fold({ open, onToggle, children }: { open: boolean; onToggle: () => void; children: React.ReactNode }) {
+  const t = useT();
   return (
     <>
       <button className="metric__fold" onClick={onToggle} aria-expanded={open}>
         <span className={`rail__chev${open ? " open" : ""}`} style={{ display: "inline-flex" }}>
           <IconChevron size={12} />
         </span>
-        {open ? "Show less" : "Show more"}
+        {open ? t("Show less") : t("Show more")}
       </button>
       {open && <div className="metric__more">{children}</div>}
     </>
@@ -94,6 +96,7 @@ const pc = (v: unknown) => `${(Number(v) || 0).toFixed(Number(v) >= 10 ? 0 : 1)}
 
 export function CpuCard({ snapshot, history }: { snapshot: Wire; history: number[] }) {
   const [open, setOpen] = useState(false);
+  const tr = useT();
   const overall = snapshot.cpu?.overall as Wire | null;
   const cores = (snapshot.cpu?.cores as Wire[]) ?? [];
   const load = (snapshot.load as Wire) ?? {};
@@ -104,24 +107,24 @@ export function CpuCard({ snapshot, history }: { snapshot: Wire; history: number
   return (
     <div className="card metric">
       <div className="metric__head">
-        <MetricTitle icon={<IconCpu size={15} />}>CPU</MetricTitle>
+        <MetricTitle icon={<IconCpu size={15} />}>{tr("CPU")}</MetricTitle>
         <span className="metric__n mono" style={{ color: t !== "accent" ? TONE_COLOR[t] : undefined }}>{pc(usage)}</span>
       </div>
       <Meter value={usage} toneOf={t} />
       <Spark values={history} toneOf={t} max={100} />
       <div className="metric__stats">
-        <MetricStat label="Load 1 min" value={(Number(load.one) || 0).toFixed(2)} />
-        <MetricStat label="5 min" value={(Number(load.five) || 0).toFixed(2)} />
-        <MetricStat label="15 min" value={(Number(load.fifteen) || 0).toFixed(2)} />
+        <MetricStat label={tr("Load 1 min")} value={(Number(load.one) || 0).toFixed(2)} />
+        <MetricStat label={tr("5 min")} value={(Number(load.five) || 0).toFixed(2)} />
+        <MetricStat label={tr("15 min")} value={(Number(load.fifteen) || 0).toFixed(2)} />
       </div>
       <Fold open={open} onToggle={() => setOpen((o) => !o)}>
         <div className="metric__stats" style={{ marginBottom: "var(--s2)" }}>
-          <MetricStat label="User" value={pc(overall?.user_percent)} />
-          <MetricStat label="System" value={pc(overall?.system_percent)} />
-          <MetricStat label="I/O wait" value={pc(overall?.iowait_percent)} />
+          <MetricStat label={tr("User")} value={pc(overall?.user_percent)} />
+          <MetricStat label={tr("System")} value={pc(overall?.system_percent)} />
+          <MetricStat label={tr("I/O wait")} value={pc(overall?.iowait_percent)} />
           {/* Steal is time the hypervisor gave to somebody else -- on a VPS it
               is the difference between "busy" and "being starved". */}
-          <MetricStat label="Steal" value={pc(overall?.steal_percent)} emphasise={Number(overall?.steal_percent) > 1} />
+          <MetricStat label={tr("Steal")} value={pc(overall?.steal_percent)} emphasise={Number(overall?.steal_percent) > 1} />
         </div>
         {cores.map((core) => (
           <div key={String(core.name)} className="metric__core">
@@ -133,8 +136,8 @@ export function CpuCard({ snapshot, history }: { snapshot: Wire; history: number
       </Fold>
       {processes > 0 && (
         <div className="metric__foot micro">
-          <span className="mono">{Number(load.running) || 0}</span> running of{" "}
-          <span className="mono">{processes}</span> processes
+          <span className="mono">{Number(load.running) || 0}</span> {tr("running of")}{" "}
+          <span className="mono">{processes}</span> {tr("processes")}
         </div>
       )}
     </div>
@@ -143,27 +146,28 @@ export function CpuCard({ snapshot, history }: { snapshot: Wire; history: number
 
 export function MemoryCard({ snapshot, history }: { snapshot: Wire; history: number[] }) {
   const [open, setOpen] = useState(false);
+  const tr = useT();
   const memory = (snapshot.memory as Wire) ?? {};
   const usage = Number(memory.used_percent) || 0;
   const t = tone(usage, 80, 92);
   return (
     <div className="card metric">
       <div className="metric__head">
-        <MetricTitle icon={<IconMemory size={15} />}>Memory</MetricTitle>
+        <MetricTitle icon={<IconMemory size={15} />}>{tr("Memory")}</MetricTitle>
         <span className="metric__n mono" style={{ color: t !== "accent" ? TONE_COLOR[t] : undefined }}>{pc(usage)}</span>
       </div>
       <Meter value={usage} toneOf={t} />
       <Spark values={history} toneOf={t} max={100} />
       <div className="metric__stats">
-        <MetricStat label="Used" value={formatBytes(Number(memory.used_bytes))} />
-        <MetricStat label="Available" value={formatBytes(Number(memory.available_bytes))} />
-        <MetricStat label="Total" value={formatBytes(Number(memory.total_bytes))} />
+        <MetricStat label={tr("Used")} value={formatBytes(Number(memory.used_bytes))} />
+        <MetricStat label={tr("Available")} value={formatBytes(Number(memory.available_bytes))} />
+        <MetricStat label={tr("Total")} value={formatBytes(Number(memory.total_bytes))} />
       </div>
       <Fold open={open} onToggle={() => setOpen((o) => !o)}>
         <div className="metric__stats">
-          <MetricStat label="Free" value={formatBytes(Number(memory.free_bytes))} />
-          <MetricStat label="Buffers" value={formatBytes(Number(memory.buffers_bytes))} />
-          <MetricStat label="Cached" value={formatBytes(Number(memory.cached_bytes))} />
+          <MetricStat label={tr("Free")} value={formatBytes(Number(memory.free_bytes))} />
+          <MetricStat label={tr("Buffers")} value={formatBytes(Number(memory.buffers_bytes))} />
+          <MetricStat label={tr("Cached")} value={formatBytes(Number(memory.cached_bytes))} />
         </div>
       </Fold>
     </div>
@@ -171,15 +175,16 @@ export function MemoryCard({ snapshot, history }: { snapshot: Wire; history: num
 }
 
 export function SwapCard({ snapshot }: { snapshot: Wire }) {
+  const tr = useT();
   const swap = (snapshot.swap as Wire) ?? {};
   if (!swap.configured) {
     // No swap is a valid configuration, not a broken card.
     return (
       <div className="card metric" style={{ opacity: 0.65 }}>
         <div className="metric__head">
-          <MetricTitle icon={<IconSwap size={15} />}>Swap</MetricTitle>
+          <MetricTitle icon={<IconSwap size={15} />}>{tr("Swap")}</MetricTitle>
         </div>
-        <p className="micro">None configured. Fine with enough memory; without it, the kernel's only relief valve is killing processes.</p>
+        <p className="micro">{tr("None configured. Fine with enough memory; without it, the kernel's only relief valve is killing processes.")}</p>
       </div>
     );
   }
@@ -188,26 +193,27 @@ export function SwapCard({ snapshot }: { snapshot: Wire }) {
   return (
     <div className="card metric">
       <div className="metric__head">
-        <MetricTitle icon={<IconSwap size={15} />}>Swap</MetricTitle>
+        <MetricTitle icon={<IconSwap size={15} />}>{tr("Swap")}</MetricTitle>
         <span className="metric__n mono" style={{ color: t !== "accent" ? TONE_COLOR[t] : undefined }}>{pc(usage)}</span>
       </div>
       <Meter value={usage} toneOf={t} />
       <div className="metric__stats">
-        <MetricStat label="Used" value={formatBytes(Number(swap.used_bytes))} />
-        <MetricStat label="Total" value={formatBytes(Number(swap.total_bytes))} />
+        <MetricStat label={tr("Used")} value={formatBytes(Number(swap.used_bytes))} />
+        <MetricStat label={tr("Total")} value={formatBytes(Number(swap.total_bytes))} />
       </div>
     </div>
   );
 }
 
 export function DiskCard({ snapshot }: { snapshot: Wire }) {
+  const tr = useT();
   const disks = (snapshot.disks as Wire[]) ?? [];
   return (
     <div className="card metric">
       <div className="metric__head">
-        <MetricTitle icon={<IconDisk size={15} />}>Disk</MetricTitle>
+        <MetricTitle icon={<IconDisk size={15} />}>{tr("Disk")}</MetricTitle>
       </div>
-      {disks.length === 0 && <p className="micro">No mounted filesystems reported.</p>}
+      {disks.length === 0 && <p className="micro">{tr("No mounted filesystems reported.")}</p>}
       {disks.map((disk) => {
         const usage = Number(disk.used_percent) || 0;
         const t = tone(usage, 80, 92);
@@ -229,6 +235,7 @@ export function DiskCard({ snapshot }: { snapshot: Wire }) {
 
 export function NetworkCard({ snapshot, rxHistory, txHistory }: { snapshot: Wire; rxHistory: number[]; txHistory: number[] }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const net = (snapshot.network as Wire) ?? {};
   const interfaces = (net.interfaces as Wire[]) ?? [];
   const rx = Number(net.rx_bytes_per_second) || 0;
@@ -237,7 +244,7 @@ export function NetworkCard({ snapshot, rxHistory, txHistory }: { snapshot: Wire
   return (
     <div className="card metric">
       <div className="metric__head">
-        <MetricTitle icon={<IconTraffic size={15} />}>Network</MetricTitle>
+        <MetricTitle icon={<IconTraffic size={15} />}>{t("Network")}</MetricTitle>
         <span className="metric__n mono" style={{ fontSize: 13, textAlign: "end" }}>
           <span style={{ whiteSpace: "nowrap" }}>↓{formatBytes(rx)}/s</span>{" "}
           <span style={{ whiteSpace: "nowrap" }}>↑{formatBytes(tx)}/s</span>
@@ -249,15 +256,15 @@ export function NetworkCard({ snapshot, rxHistory, txHistory }: { snapshot: Wire
         <Spark values={txHistory} color="var(--chart-send)" max={sparkMax} />
       </div>
       <div className="metric__stats">
-        <MetricStat label="↓ Download" value={`${formatBytes(rx)}/s`} />
-        <MetricStat label="↑ Upload" value={`${formatBytes(tx)}/s`} />
+        <MetricStat label={`↓ ${t("Download")}`} value={`${formatBytes(rx)}/s`} />
+        <MetricStat label={`↑ ${t("Upload")}`} value={`${formatBytes(tx)}/s`} />
       </div>
       <Fold open={open} onToggle={() => setOpen((o) => !o)}>
         {interfaces.map((iface) => (
           <div key={String(iface.name)} style={{ display: "flex", gap: "var(--s2)", justifyContent: "space-between", marginBottom: 4, minWidth: 0 }}>
             <span className="mono micro truncate">{String(iface.name)}</span>
             <span className="mono micro" style={{ flex: "none" }}>
-              ↓{formatBytes(Number(iface.rx_bytes))} · ↑{formatBytes(Number(iface.tx_bytes))} total
+              ↓{formatBytes(Number(iface.rx_bytes))} · ↑{formatBytes(Number(iface.tx_bytes))} {t("total")}
             </span>
           </div>
         ))}

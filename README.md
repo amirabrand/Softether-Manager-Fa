@@ -1,5 +1,27 @@
 # SoftEther Manager
 
+> **Persian bilingual edition (نسخه دوزبانه فارسی)** — this fork adds a complete
+> Persian (Farsi) UI with full right-to-left layout, enabled by default, alongside
+> English. It also ships ten bug fixes; see [CHANGES-FA.md](CHANGES-FA.md) for the
+> full list (in Persian).
+>
+> **One-line install / نصب تک‌خطی:**
+>
+> ```bash
+> unzip Softether-Manager-Fa.zip -d sem && cd sem && sudo bash setup.sh
+> ```
+>
+> Install straight from this repository instead (installs the panel **and** a
+> SoftEther VPN Server, generates an admin password, prints everything at the end):
+>
+> ```bash
+> sudo SEM_REPO=amirabrand/Softether-Manager-Fa \
+>      bash <(curl -Ls https://raw.githubusercontent.com/amirabrand/Softether-Manager-Fa/master/scripts/install.sh)
+> ```
+>
+> The panel itself can switch between فارسی and English at any time from the
+> sidebar; the choice is remembered per browser.
+
 A self-hosted web panel that manages the [SoftEther VPN Server](https://www.softether.org/)
 on the machine it is installed on — the **entire** JSON-RPC management API, all 133
 methods, behind a fast, modern interface, next to live monitoring of the machine itself.

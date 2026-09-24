@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError, type Quota, type QuotaMetric, type QuotaUnit } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { useToast } from "../lib/toast";
 import { formatBytes, formatDate } from "../lib/util";
 import { CheckRow, Field, usePoll } from "./bits";
@@ -27,15 +28,16 @@ import { SwitchRow, useToggle } from "../ui/Switch";
  * colouring a bar red and leaving the operator to guess.
  */
 
-export const METRIC_OPTIONS: { value: QuotaMetric; label: string; hint: string }[] = [
-  { value: "total", label: "Both", hint: "Download and upload added together." },
-  { value: "download", label: "Download", hint: "Only what the subject pulls down." },
-  { value: "upload", label: "Upload", hint: "Only what the subject pushes up." },
+/** The metric options; labels/hints pass through t() so they follow the language. */
+export const METRIC_OPTIONS = (t: (key: string) => string): { value: QuotaMetric; label: string; hint: string }[] => [
+  { value: "total", label: t("Both"), hint: t("Download and upload added together.") },
+  { value: "download", label: t("Download"), hint: t("Only what the subject pulls down.") },
+  { value: "upload", label: t("Upload"), hint: t("Only what the subject pushes up.") },
 ];
 
 const UNITS: QuotaUnit[] = ["MB", "GB", "TB"];
 
-/** What the metric is called in a sentence. */
+/** What the metric is called in a sentence; the values are t() keys. */
 export const METRIC_WORD: Record<QuotaMetric, string> = {
   total: "download + upload",
   download: "download",
@@ -97,6 +99,7 @@ const TONE_COLOR = {
 
 /** The bar itself — shared by the summary and by the table cell. */
 export function QuotaMeter({ quota, used }: { quota: Quota; used?: number }) {
+  const t = useT();
   const spent = used ?? quota.used_bytes;
   const percent = percentOf(spent, quota.limit_bytes);
   return (
@@ -106,7 +109,7 @@ export function QuotaMeter({ quota, used }: { quota: Quota; used?: number }) {
       aria-valuenow={Math.round(percent)}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label={`${formatBytes(spent)} of ${formatBytes(quota.limit_bytes)} used`}
+      aria-label={t("{spent} of {limit} used", { spent: formatBytes(spent), limit: formatBytes(quota.limit_bytes) })}
     >
       <div
         className="meter__fill"
@@ -200,10 +203,12 @@ export function QuotaFields({
   draft: QuotaDraft;
   onChange: (next: QuotaDraft) => void;
 }) {
+  const t = useT();
   const set = (patch: Partial<QuotaDraft>) => onChange({ ...draft, ...patch });
+  const metricHint = METRIC_OPTIONS(t).find((m) => m.value === draft.metric)?.hint;
   return (
     <div className="row2">
-      <Field label="Limit" hint="How much may move before the ceiling bites.">
+      <Field label={t("Limit")} hint={t("How much may move before the ceiling bites.")}>
         <div className="qsplit">
           <input
             className="input mono"
@@ -216,7 +221,7 @@ export function QuotaFields({
           />
           <select
             className="select"
-            aria-label="Unit"
+            aria-label={t("Unit")}
             value={draft.unit}
             onChange={(e) => set({ unit: e.target.value as QuotaUnit })}
           >
@@ -226,9 +231,9 @@ export function QuotaFields({
           </select>
         </div>
       </Field>
-      <Field label="Counts" hint={METRIC_OPTIONS.find((m) => m.value === draft.metric)?.hint}>
-        <div className="seg" role="radiogroup" aria-label="What the limit counts">
-          {METRIC_OPTIONS.map((m) => (
+      <Field label={t("Counts")} hint={metricHint}>
+        <div className="seg" role="radiogroup" aria-label={t("What the limit counts")}>
+          {METRIC_OPTIONS(t).map((m) => (
             <button
               key={m.value}
               role="radio"
@@ -260,6 +265,7 @@ export function QuotaSummary({
   subject: "hub" | "user";
   net?: Bytes;
 }) {
+  const t = useT();
   const moved: Bytes = net ?? { send: quota.upload_bytes, recv: quota.download_bytes };
   const used = meteredBytes(moved, quota.metric);
   const percent = percentOf(used, quota.limit_bytes);
@@ -270,45 +276,41 @@ export function QuotaSummary({
         <span className="quota__used mono">{formatBytes(used)}</span>
         <span className="quota__of micro">
           {quota.has_limit
-            ? `of ${formatBytes(quota.limit_bytes)} ${METRIC_WORD[quota.metric]}`
-            : "moved — no ceiling set"}
+            ? t("of {limit} {metric}", { limit: formatBytes(quota.limit_bytes), metric: t(METRIC_WORD[quota.metric]) })
+            : t("moved — no ceiling set")}
         </span>
         {/* Worst state first. "spent" without a block means the ceiling was
             crossed but the cut-off has not landed yet -- the tick is due, or it
             could not reach the server -- which is worth saying rather than
             showing the same pill as a block that took. */}
         {!quota.has_limit ? null : quota.blocked ? (
-          <Pill kind="err" label={subject === "hub" ? "offline — over limit" : "cut off — over limit"} />
+          <Pill kind="err" label={subject === "hub" ? t("offline — over limit") : t("cut off — over limit")} />
         ) : !quota.enabled ? (
-          <Pill kind="idle" label="not enforced" />
+          <Pill kind="idle" label={t("not enforced")} />
         ) : percent >= 100 ? (
-          <Pill kind="busy" label="spent — cutting off" />
+          <Pill kind="busy" label={t("spent — cutting off")} />
         ) : percent >= 80 ? (
-          <Pill kind="warn" label="nearly spent" />
+          <Pill kind="warn" label={t("nearly spent")} />
         ) : (
-          <Pill kind="ok" label="within limit" />
+          <Pill kind="ok" label={t("within limit")} />
         )}
       </div>
       {quota.has_limit && <QuotaMeter quota={quota} used={used} />}
       <div className="quota__facts">
-        <span className="chip"><i>↓ down</i>{formatBytes(moved.recv)}</span>
-        <span className="chip"><i>↑ up</i>{formatBytes(moved.send)}</span>
-        {left != null && <span className="chip"><i>left</i>{formatBytes(left)}</span>}
-        <span className="chip"><i>counting since</i>{formatDate(quota.cycle_start)}</span>
+        <span className="chip"><i>↓ {t("down")}</i>{formatBytes(moved.recv)}</span>
+        <span className="chip"><i>↑ {t("up")}</i>{formatBytes(moved.send)}</span>
+        {left != null && <span className="chip"><i>{t("left")}</i>{formatBytes(left)}</span>}
+        <span className="chip"><i>{t("counting since")}</i>{formatDate(quota.cycle_start)}</span>
       </div>
       {quota.blocked && (
         <div className="alert alert--warn">
           {subject === "hub" ? (
             <>
-              This hub was taken offline when the limit was reached, and every session in it was
-              dropped. Raise the limit or reset the transfer to bring it back — the panel puts it
-              online again by itself.
+              {t("This hub was taken offline when the limit was reached, and every session in it was dropped. Raise the limit or reset the transfer to bring it back — the panel puts it online again by itself.")}
             </>
           ) : (
             <>
-              Access for this config was denied when the limit was reached, and its sessions were
-              cut. Raise the limit or reset the transfer and the panel restores exactly the policy
-              it found.
+              {t("Access for this config was denied when the limit was reached, and its sessions were cut. Raise the limit or reset the transfer and the panel restores exactly the policy it found.")}
             </>
           )}
         </div>
@@ -338,6 +340,7 @@ export function UserQuotaBlock({
   /** The config's raw lifetime counters, when the caller has them. */
   raw?: Bytes;
 }) {
+  const t = useT();
   const set = (patch: Partial<QuotaDraft>) => onChange({ ...draft, ...patch });
   const moved = raw
     ? netBytes(raw, quota)
@@ -347,15 +350,15 @@ export function UserQuotaBlock({
   const transfer = moved ? moved.send + moved.recv : 0;
   return (
     <>
-      <div className="tpl__group">Traffic limit</div>
+      <div className="tpl__group">{t("Traffic limit")}</div>
       <CheckRow
         checked={draft.on}
         onChange={(v) => set({ on: v })}
-        label="Limit how much this config may move"
+        label={t("Limit how much this config may move")}
         hint={
           moved
-            ? `Measured against the transfer the panel shows for this config — ${formatBytes(transfer)} right now — so a limit applies to what it has already used, not only to what it uses next.`
-            : "Measured against the transfer the panel shows for this config, so a limit applies to what it has already used, not only to what it uses next."
+            ? t("Measured against the transfer the panel shows for this config — {now} right now — so a limit applies to what it has already used, not only to what it uses next.", { now: formatBytes(transfer) })
+            : t("Measured against the transfer the panel shows for this config, so a limit applies to what it has already used, not only to what it uses next.")
         }
       />
       {draft.on && (
@@ -365,8 +368,8 @@ export function UserQuotaBlock({
           <CheckRow
             checked={draft.enforce}
             onChange={(v) => set({ enforce: v })}
-            label="Enforce this limit"
-            hint="Off, the transfer still counts and the meter still fills, but nothing is ever cut off — useful for watching what a config would use before committing to a ceiling."
+            label={t("Enforce this limit")}
+            hint={t("Off, the transfer still counts and the meter still fills, but nothing is ever cut off — useful for watching what a config would use before committing to a ceiling.")}
           />
         </>
       )}
@@ -374,14 +377,13 @@ export function UserQuotaBlock({
         <CheckRow
           checked={draft.reset}
           onChange={(v) => set({ reset: v })}
-          label={`Reset this config's transfer to zero (now ${formatBytes(transfer)})`}
-          hint="SoftEther counts forever and cannot be told to stop, so the panel keeps its own zero and every figure subtracts it. Saving with this ticked moves that zero to today: the Transfer column and any limit start again together."
+          label={t("Reset this config's transfer to zero (now {now})", { now: formatBytes(transfer) })}
+          hint={t("SoftEther counts forever and cannot be told to stop, so the panel keeps its own zero and every figure subtracts it. Saving with this ticked moves that zero to today: the Transfer column and any limit start again together.")}
         />
       )}
       {!draft.on && quota?.blocked && (
         <div className="alert alert--warn">
-          This config is cut off by its limit right now. Saving with the limit removed restores its
-          access.
+          {t("This config is cut off by its limit right now. Saving with the limit removed restores its access.")}
         </div>
       )}
     </>
@@ -426,14 +428,19 @@ export function quotaSortValue(quota: Quota | undefined, net?: Bytes): number {
  * -- worst first -- whether it has already bitten.
  */
 export function QuotaStatePill({ quota, net }: { quota: Quota | undefined | null; net?: Bytes }) {
+  const t = useT();
   if (!quota?.has_limit) return null;
   const moved: Bytes = net ?? { send: quota.upload_bytes, recv: quota.download_bytes };
   const percent = Math.round(percentOf(meteredBytes(moved, quota.metric), quota.limit_bytes));
-  const title = `${formatBytes(meteredBytes(moved, quota.metric))} of ${formatBytes(quota.limit_bytes)} ${METRIC_WORD[quota.metric]}`;
-  if (quota.blocked) return <span title={title}><Pill kind="err" label="over limit" /></span>;
-  if (!quota.enabled) return <span title={title}><Pill kind="idle" label={`limit off · ${percent}%`} /></span>;
-  if (percent >= 100) return <span title={title}><Pill kind="busy" label="limit spent" /></span>;
-  return <span title={title}><Pill kind={percent >= 80 ? "warn" : "ok"} label={`limit ${percent}%`} /></span>;
+  const title = t("{used} of {limit} {metric}", {
+    used: formatBytes(meteredBytes(moved, quota.metric)),
+    limit: formatBytes(quota.limit_bytes),
+    metric: t(METRIC_WORD[quota.metric]),
+  });
+  if (quota.blocked) return <span title={title}><Pill kind="err" label={t("over limit")} /></span>;
+  if (!quota.enabled) return <span title={title}><Pill kind="idle" label={t("limit off · {p}%", { p: percent })} /></span>;
+  if (percent >= 100) return <span title={title}><Pill kind="busy" label={t("limit spent")} /></span>;
+  return <span title={title}><Pill kind={percent >= 80 ? "warn" : "ok"} label={t("limit {p}%", { p: percent })} /></span>;
 }
 
 /**
@@ -451,7 +458,8 @@ export function QuotaEnforceSwitch({
   /** Called with the quota as the server reports it after the switch. */
   onChanged: (next: Quota) => void;
 }) {
-  const noun = subject === "hub" ? "The hub's traffic limit" : "The config's traffic limit";
+  const t = useT();
+  const noun = subject === "hub" ? t("The hub's traffic limit") : t("The config's traffic limit");
   const read = async () =>
     subject === "hub" ? api.hubQuota(quota.hub) : api.userQuota(quota.hub, quota.username);
   const toggle = useToggle({
@@ -474,30 +482,30 @@ export function QuotaEnforceSwitch({
       }
     },
     noun,
-    onWord: "enforced",
-    offWord: "not enforced",
+    onWord: t("enforced"),
+    offWord: t("not enforced"),
   });
   return (
     <SwitchRow
-      label="Enforce this limit"
+      label={t("Enforce this limit")}
       hint={
         quota.enabled
           ? subject === "hub"
-            ? "Armed: reaching the ceiling takes the hub offline until the limit is raised or the transfer reset."
-            : "Armed: reaching the ceiling denies this config access and cuts its sessions."
-          : "Off: the transfer still counts and the meter still fills, but nothing is ever cut off. Turning it back on re-applies the ceiling at once."
+            ? t("Armed: reaching the ceiling takes the hub offline until the limit is raised or the transfer reset.")
+            : t("Armed: reaching the ceiling denies this config access and cuts its sessions.")
+          : t("Off: the transfer still counts and the meter still fills, but nothing is ever cut off. Turning it back on re-applies the ceiling at once.")
       }
       status={
         quota.blocked ? (
-          <Pill kind="err" label={subject === "hub" ? "hub offline" : "cut off"} />
+          <Pill kind="err" label={subject === "hub" ? t("hub offline") : t("cut off")} />
         ) : (
-          <Pill kind={quota.enabled ? "ok" : "idle"} label={quota.enabled ? "enforced" : "not enforced"} />
+          <Pill kind={quota.enabled ? "ok" : "idle"} label={quota.enabled ? t("enforced") : t("not enforced")} />
         )
       }
       toggle={toggle}
       on={quota.enabled}
-      onWord="enforced"
-      offWord="off"
+      onWord={t("enforced")}
+      offWord={t("off")}
     />
   );
 }
@@ -505,20 +513,25 @@ export function QuotaEnforceSwitch({
 /** Used / limit with a bar, for a table cell. `net` is the row's own
  *  Transfer, so the two columns can never disagree. */
 export function QuotaCell({ quota, net }: { quota: Quota | undefined; net?: Bytes }) {
+  const t = useT();
   if (!quota?.has_limit) return <span className="micro">—</span>;
   const moved: Bytes = net ?? { send: quota.upload_bytes, recv: quota.download_bytes };
   const used = meteredBytes(moved, quota.metric);
   return (
     <span
       className="qcell"
-      title={`${METRIC_WORD[quota.metric]} · ${formatBytes(used)} of ${formatBytes(quota.limit_bytes)}`}
+      title={t("{metric} · {used} of {limit}", {
+        metric: t(METRIC_WORD[quota.metric]),
+        used: formatBytes(used),
+        limit: formatBytes(quota.limit_bytes),
+      })}
     >
       <span className="qcell__t mono">
         {formatBytes(used)}
         <span className="muted"> / {formatBytes(quota.limit_bytes)}</span>
       </span>
       <QuotaMeter quota={quota} used={used} />
-      {quota.blocked ? <Pill kind="err" label="over" /> : !quota.enabled ? <Pill kind="idle" label="off" /> : null}
+      {quota.blocked ? <Pill kind="err" label={t("over")} /> : !quota.enabled ? <Pill kind="idle" label={t("off")} /> : null}
     </span>
   );
 }
@@ -530,6 +543,7 @@ export function QuotaCell({ quota, net }: { quota: Quota | undefined; net?: Byte
  * carries its own Save, its own Reset and its own Remove.
  */
 export function QuotaCard({ hub, onChanged }: { hub: string; onChanged?: () => void }) {
+  const t = useT();
   const [quota, setQuota] = useState<Quota | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [draft, setDraft] = useState<QuotaDraft>(EMPTY_DRAFT);
@@ -583,7 +597,7 @@ export function QuotaCard({ hub, onChanged }: { hub: string; onChanged?: () => v
     try {
       amount = draftAmount(draft);
     } catch (e) {
-      push("err", e instanceof Error ? e.message : String(e));
+      push("err", e instanceof Error ? t(e.message) : t(String(e)));
       return;
     }
     setSaving(true);
@@ -598,7 +612,7 @@ export function QuotaCard({ hub, onChanged }: { hub: string; onChanged?: () => v
           enabled: quota?.has_limit ? quota.enabled : draft.enforce,
         }),
       );
-    }, "Traffic limit saved.");
+    }, t("Traffic limit saved."));
     setSaving(false);
     if (ok) onChanged?.();
   };
@@ -607,7 +621,7 @@ export function QuotaCard({ hub, onChanged }: { hub: string; onChanged?: () => v
     guard(async () => {
       adopt(await api.resetHubTransfer(hub));
       onChanged?.();
-    }, "Transfer reset — the hub counts from zero again.");
+    }, t("Transfer reset — the hub counts from zero again."));
 
   const remove = () =>
     guard(async () => {
@@ -615,7 +629,7 @@ export function QuotaCard({ hub, onChanged }: { hub: string; onChanged?: () => v
       adopt(null);
       setRemoving(false);
       onChanged?.();
-    }, "Traffic limit removed.");
+    }, t("Traffic limit removed."));
 
   if (!loaded) return null;
 
@@ -626,9 +640,7 @@ export function QuotaCard({ hub, onChanged }: { hub: string; onChanged?: () => v
         <QuotaSummary quota={quota} subject="hub" />
       ) : (
         <p className="lede" style={{ marginBottom: "var(--s3)" }}>
-          No traffic limit on this hub. Set one and the panel counts what moves — from
-          SoftEther&rsquo;s own counters, so it survives a restart — and takes the hub offline the
-          moment the ceiling is reached.
+          {t("No traffic limit on this hub. Set one and the panel counts what moves — from SoftEther’s own counters, so it survives a restart — and takes the hub offline the moment the ceiling is reached.")}
         </p>
       )}
 
@@ -638,24 +650,24 @@ export function QuotaCard({ hub, onChanged }: { hub: string; onChanged?: () => v
         <CheckRow
           checked={draft.enforce}
           onChange={(v) => change({ ...draft, enforce: v })}
-          label="Enforce this limit from the start"
-          hint="Off, the counter runs and the meter fills, but the hub is never taken offline — useful for watching what it would use before committing to a ceiling. It can be switched either way afterwards."
+          label={t("Enforce this limit from the start")}
+          hint={t("Off, the counter runs and the meter fills, but the hub is never taken offline — useful for watching what it would use before committing to a ceiling. It can be switched either way afterwards.")}
         />
       )}
 
       <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", marginTop: "var(--s3)" }}>
         {(dirty || !quota?.has_limit) && (
           <button className="btn btn--primary" onClick={() => void save()} disabled={saving}>
-            {saving && <span className="spin" />} {quota?.has_limit ? "Save limit" : "Set the limit"}
+            {saving && <span className="spin" />} {quota?.has_limit ? t("Save limit") : t("Set the limit")}
           </button>
         )}
-        {dirty && quota?.has_limit && <button className="btn" onClick={() => adopt(quota)}>Discard</button>}
+        {dirty && quota?.has_limit && <button className="btn" onClick={() => adopt(quota)}>{t("Discard")}</button>}
         {quota && !dirty && (
           <>
-            <button className="btn" onClick={() => void reset()}>Reset transfer</button>
+            <button className="btn" onClick={() => void reset()}>{t("Reset transfer")}</button>
             {quota.has_limit && (
               <button className="btn btn--ghost" onClick={() => setRemoving(true)}>
-                <IconTrash size={14} /> Remove limit
+                <IconTrash size={14} /> {t("Remove limit")}
               </button>
             )}
           </>
@@ -664,22 +676,21 @@ export function QuotaCard({ hub, onChanged }: { hub: string; onChanged?: () => v
 
       {removing && (
         <Sheet
-          title="Remove the traffic limit?"
+          title={t("Remove the traffic limit?")}
           subtitle={hub}
           onClose={() => setRemoving(false)}
           footer={
             <>
-              <button className="btn" onClick={() => setRemoving(false)}>Keep it</button>
-              <button className="btn btn--danger" onClick={() => void remove()}>Remove limit</button>
+              <button className="btn" onClick={() => setRemoving(false)}>{t("Keep it")}</button>
+              <button className="btn btn--danger" onClick={() => void remove()}>{t("Remove limit")}</button>
             </>
           }
         >
           <p className="lede">
-            The ceiling and everything counted against it are dropped.
+            {t("The ceiling and everything counted against it are dropped.")}
             {quota?.blocked && (
               <>
-                {" "}Because this hub is offline <b>because of</b> the limit, removing it also brings
-                the hub back online.
+                {" "}{t("Because this hub is offline")} <b>{t("because of")}</b> {t("the limit, removing it also brings the hub back online.")}
               </>
             )}
           </p>

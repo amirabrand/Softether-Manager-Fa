@@ -24,6 +24,7 @@ import { VpnFileSheet } from "../../components/VpnFileSheet";
 import { api, type Quota, type Wire } from "../../lib/api";
 import { navigate, seg } from "../../lib/router";
 import { AUTH_TYPES, isNever, userBytes, userSortValue } from "../../lib/se";
+import { useT } from "../../lib/i18n";
 import { formatBytes, formatCount, formatDate, timeAgo } from "../../lib/util";
 import { IconChevron, IconDownload, IconPlus, IconUsers } from "../../ui/Icon";
 import { Pill } from "../../ui/Status";
@@ -37,6 +38,7 @@ import { Pill } from "../../ui/Status";
  * sessions) is the user page, one tap deeper.
  */
 export function HubUsers({ hub }: { hub: string }) {
+  const t = useT();
   const [users, setUsers] = useState<Wire[] | null>(null);
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
@@ -90,32 +92,32 @@ export function HubUsers({ hub }: { hub: string }) {
         count={users?.length}
         actions={
           <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap" }}>
-            <SearchBox value={query} onChange={setQuery} placeholder="name, group, note…" />
+            <SearchBox value={query} onChange={setQuery} placeholder={t("name, group, note…")} />
             <button className="btn btn--primary btn--sm" onClick={() => setCreating(true)}>
-              <IconPlus size={14} /> New user
+              <IconPlus size={14} /> {t("New user")}
             </button>
           </div>
         }
       >
-        Users
+        {t("Users")}
       </SectionTitle>
 
       {filtered === null ? (
-        <LoadingBlock label="loading users" />
+        <LoadingBlock label={t("loading users")} />
       ) : filtered.length === 0 ? (
         <Empty
-          title={query ? "nothing matches" : "no users yet"}
+          title={query ? t("nothing matches") : t("no users yet")}
           action={
             !query && (
               <button className="btn btn--primary" onClick={() => setCreating(true)}>
-                <IconPlus size={15} /> Create the first user
+                <IconPlus size={15} /> {t("Create the first user")}
               </button>
             )
           }
         >
           {query
-            ? "No user, group or note matches that search."
-            : "A user is one VPN identity: a name, a way to authenticate, and the policy that binds it."}
+            ? t("No user, group or note matches that search.")
+            : t("A user is one VPN identity: a name, a way to authenticate, and the policy that binds it.")}
         </Empty>
       ) : (
         <>
@@ -126,16 +128,16 @@ export function HubUsers({ hub }: { hub: string }) {
                 <table className="dtable">
                   <thead>
                     <tr>
-                      <SortTh sortKey="user" sort={sort} onSort={toggle}>User</SortTh>
-                      <SortTh sortKey="status" sort={sort} onSort={toggle} style={{ width: 110 }}>Status</SortTh>
-                      <SortTh sortKey="group" sort={sort} onSort={toggle}>Group</SortTh>
-                      <SortTh sortKey="auth" sort={sort} onSort={toggle}>Auth</SortTh>
-                      <SortTh sortKey="login" sort={sort} onSort={toggle}>Last login</SortTh>
-                      <SortTh sortKey="logins" sort={sort} onSort={toggle} style={{ width: 90 }}>Logins</SortTh>
-                      <SortTh sortKey="transfer" sort={sort} onSort={toggle}>Transfer</SortTh>
-                      <SortTh sortKey="quota" sort={sort} onSort={toggle}>Limit</SortTh>
-                      <SortTh sortKey="expires" sort={sort} onSort={toggle}>Expires</SortTh>
-                      <th className="tact" style={{ width: 96 }} aria-label="Actions" />
+                      <SortTh sortKey="user" sort={sort} onSort={toggle}>{t("User")}</SortTh>
+                      <SortTh sortKey="status" sort={sort} onSort={toggle} style={{ width: 110 }}>{t("Status")}</SortTh>
+                      <SortTh sortKey="group" sort={sort} onSort={toggle}>{t("Group")}</SortTh>
+                      <SortTh sortKey="auth" sort={sort} onSort={toggle}>{t("Auth")}</SortTh>
+                      <SortTh sortKey="login" sort={sort} onSort={toggle}>{t("Last login")}</SortTh>
+                      <SortTh sortKey="logins" sort={sort} onSort={toggle} style={{ width: 90 }}>{t("Logins")}</SortTh>
+                      <SortTh sortKey="transfer" sort={sort} onSort={toggle}>{t("Transfer")}</SortTh>
+                      <SortTh sortKey="quota" sort={sort} onSort={toggle}>{t("Limit")}</SortTh>
+                      <SortTh sortKey="expires" sort={sort} onSort={toggle}>{t("Expires")}</SortTh>
+                      <th className="tact" style={{ width: 96 }} aria-label={t("Actions")} />
                     </tr>
                   </thead>
                   <tbody>
@@ -169,13 +171,13 @@ export function HubUsers({ hub }: { hub: string }) {
                       <UserStatePill user={u} online={online.has(String(u.Name_str).toLowerCase())} />
                     </div>
                     <div className="spec">
-                      <span className="chip"><i>group</i>{String(u.GroupName_str || "—")}</span>
-                      <span className="chip"><i>auth</i>{AUTH_TYPES[Number(u.AuthType_u32)] ?? "?"}</span>
-                      <span className="chip"><i>data</i>{formatBytes(bytes.send + bytes.recv)}</span>
-                      <span className="chip"><i>seen</i>{timeAgo(u.LastLoginTime_dt as string)}</span>
+                      <span className="chip"><i>{t("group")}</i>{String(u.GroupName_str || "—")}</span>
+                      <span className="chip"><i>{t("auth")}</i>{AUTH_TYPES[Number(u.AuthType_u32)] ?? "?"}</span>
+                      <span className="chip"><i>{t("data")}</i>{formatBytes(bytes.send + bytes.recv)}</span>
+                      <span className="chip"><i>{t("seen")}</i>{timeAgo(u.LastLoginTime_dt as string)}</span>
                       {quota?.has_limit && (
                         <span className={`chip${quota.blocked ? "" : " chip--brand"}`}>
-                          <i>limit</i>
+                          <i>{t("limit")}</i>
                           {formatBytes(meteredBytes(bytes, quota.metric))} /{" "}
                           {formatBytes(quota.limit_bytes)}
                         </span>
@@ -211,18 +213,20 @@ export function HubUsers({ hub }: { hub: string }) {
 }
 
 export function UserStatePill({ user, online }: { user: Wire; online?: boolean }) {
+  const t = useT();
   // Denied and expired win: they are why the account cannot be used, which
   // matters more than whether a session is still up at this instant.
-  if (user.DenyAccess_bool) return <Pill kind="err" label="denied" />;
+  if (user.DenyAccess_bool) return <Pill kind="err" label={t("denied")} />;
   const expires = user.Expires_dt ?? user.ExpireTime_dt;
   if (!isNever(expires as string) && new Date(expires as string).getTime() < Date.now())
-    return <Pill kind="warn" label="expired" />;
+    return <Pill kind="warn" label={t("expired")} />;
   const connected = online ?? Boolean(user.Online_bool);
-  if (connected) return <Pill kind="ok" label="online" />;
-  return <Pill kind="idle" label="offline" />;
+  if (connected) return <Pill kind="ok" label={t("online")} />;
+  return <Pill kind="idle" label={t("offline")} />;
 }
 
 function UserRow({ user: u, quota, moved, online, onOpen, onVpnFile }: { user: Wire; quota?: Quota; moved: { send: number; recv: number }; online: boolean; onOpen: () => void; onVpnFile: () => void }) {
+  const t = useT();
   const bytes = moved;
   const expires = u.Expires_dt ?? u.ExpireTime_dt;
   return (
@@ -242,12 +246,12 @@ function UserRow({ user: u, quota, moved, online, onOpen, onVpnFile }: { user: W
         {formatBytes(bytes.send + bytes.recv)}
       </td>
       <td><QuotaCell quota={quota} net={moved} /></td>
-      <td className="tmono">{isNever(expires as string) ? "never" : formatDate(expires as string)}</td>
+      <td className="tmono">{isNever(expires as string) ? t("never") : formatDate(expires as string)}</td>
       <td className="tact">
         <button
           className="btn btn--sm btn--ghost"
-          title="Download .vpn connection file"
-          aria-label="Download .vpn connection file"
+          title={t("Download .vpn connection file")}
+          aria-label={t("Download .vpn connection file")}
           onClick={(e) => {
             e.stopPropagation();
             onVpnFile();

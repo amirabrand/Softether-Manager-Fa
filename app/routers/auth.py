@@ -1,6 +1,7 @@
 """Signing in, the first account, and the account itself."""
 from __future__ import annotations
 
+import sqlite3
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -59,11 +60,18 @@ def setup(body: Credentials, request: Request, response: Response) -> dict[str, 
     if _account_count() > 0:
         raise HTTPException(status_code=409, detail="An account already exists on this panel.")
     now = utc_now()
-    user_id = get_db().execute(
-        'INSERT INTO "PanelUser"("Username", "PasswordHash", "CreatedDate", "UpdatedDate") '
-        "VALUES (:u, :h, :now, :now)",
-        {"u": body.username, "h": hash_password(body.password), "now": now},
-    )
+    try:
+        user_id = get_db().execute(
+            'INSERT INTO "PanelUser"("Username", "PasswordHash", "CreatedDate", "UpdatedDate") '
+            "VALUES (:u, :h, :now, :now)",
+            {"u": body.username, "h": hash_password(body.password), "now": now},
+        )
+    except sqlite3.IntegrityError:
+        # Two concurrent /setup calls both passed the count check; the UNIQUE
+        # constraint on Username lets exactly one win.
+        raise HTTPException(
+            status_code=409, detail="An account already exists on this panel."
+        ) from None
     record({"UserID": user_id, "Username": body.username}, "auth.setup", "panel_user", body.username)
     return _issue(request, response, user_id, body.username)
 

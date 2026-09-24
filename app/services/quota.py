@@ -523,8 +523,10 @@ def release(row: dict[str, Any], reason: str = "back under the limit") -> bool:
     """Lift a block, putting back exactly what :func:`block` found.
 
     Safe to call on a row that is not blocked -- it does nothing. When the
-    stored state cannot be applied the row is still cleared: leaving it marked
-    blocked would stop the next tick ever trying again.
+    stored state cannot be applied (SoftEther unreachable, the subject gone)
+    the row stays marked blocked so the next tick retries the restore; a
+    subject that no longer exists is treated as released, there is nothing
+    left to put back.
     """
     if not row["EnforcedDate"]:
         return False
@@ -538,6 +540,8 @@ def release(row: dict[str, Any], reason: str = "back under the limit") -> bool:
     except ValueError:
         restore = {}
 
+    ok = False
+    gone = False
     try:
         if subject == "hub":
             # A hub that was already offline when the quota bit stays offline:
@@ -550,8 +554,15 @@ def release(row: dict[str, Any], reason: str = "back under the limit") -> bool:
             body["UsePolicy_bool"] = bool(restore.get("UsePolicy_bool", False))
             body["policy:Access_bool"] = bool(restore.get("policy:Access_bool", True))
             rpc("SetUser", {**body, "HubName_str": hub, "Name_str": name})
+        ok = True
     except Exception as exc:  # noqa: BLE001 - the subject may be gone entirely
         logger.warning("could not lift the %s quota block on %s/%s: %s", subject, hub, name, exc)
+        gone = _subject_missing(exc)
+
+    if not ok and not gone:
+        # The server could not be reached (or refused for a transient reason).
+        # Keep the row marked blocked so the next enforcement tick retries.
+        return False
 
     now = utc_now()
     get_db().execute(
@@ -567,6 +578,12 @@ def release(row: dict[str, Any], reason: str = "back under the limit") -> bool:
         reason,
     )
     return True
+
+
+def _subject_missing(exc: Exception) -> bool:
+    """True when an RPC failure means the subject no longer exists."""
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return any(marker in text for marker in ("not exist", "not found", "no such", "doesn't exist"))
 
 
 def _cut_sessions(hub: str, username: str) -> None:
@@ -607,9 +624,9 @@ def enforce() -> list[dict[str, Any]]:
                 changed.append({"subject": row["SubjectType"], "hub": row["HubName"],
                                 "username": row["UserName"], "action": "blocked"})
         elif not over and blocked:
-            release(row)
-            changed.append({"subject": row["SubjectType"], "hub": row["HubName"],
-                            "username": row["UserName"], "action": "released"})
+            if release(row):
+                changed.append({"subject": row["SubjectType"], "hub": row["HubName"],
+                                "username": row["UserName"], "action": "released"})
         elif over and not row["ExceededDate"]:
             get_db().execute(
                 'UPDATE "TrafficQuota" SET "ExceededDate" = :now WHERE "TrafficQuotaID" = :id',

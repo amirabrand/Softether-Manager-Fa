@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { ConfirmSheet, Empty, KV, LoadingBlock, PageHead, usePoll } from "../components/bits";
 import { api, type Wire } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { useToast } from "../lib/toast";
 import { formatDate, timeAgo } from "../lib/util";
 import { IconClose } from "../ui/Icon";
@@ -14,18 +15,18 @@ import { Pill } from "../ui/Status";
  * management links, and this very panel. The lowest-level live view there is.
  */
 
-const CONNECTION_TYPES: Record<number, string> = {
-  0: "client",
-  1: "initializing",
-  2: "login",
-  3: "additional",
-  4: "RPC / farm",
-  5: "admin",
-  6: "management",
-  7: "management",
-};
-
 export function Connections() {
+  const t = useT();
+  const CONNECTION_TYPES: Record<number, string> = {
+    0: t("client"),
+    1: t("initializing"),
+    2: t("login"),
+    3: t("additional"),
+    4: t("RPC / farm"),
+    5: t("admin"),
+    6: t("management"),
+    7: t("management"),
+  };
   const [connections, setConnections] = useState<Wire[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [killing, setKilling] = useState<Wire | null>(null);
@@ -38,29 +39,29 @@ export function Connections() {
 
   return (
     <div className="page">
-      <PageHead title="Connections" sub="live TCP connections into the VPN server" />
+      <PageHead title={t("Connections")} sub={t("live TCP connections into the VPN server")} />
       {connections === null ? (
-        <LoadingBlock label="loading connections" />
+        <LoadingBlock label={t("loading connections")} />
       ) : connections.length === 0 ? (
-        <Empty title="no connections">Which would be odd, since this panel is one.</Empty>
+        <Empty title={t("no connections")}>{t("Which would be odd, since this panel is one.")}</Empty>
       ) : (
         <div className="card tcard">
           <div className="tscroll">
             <table className="dtable">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Kind</th>
-                  <th>Source</th>
-                  <th>Connected</th>
-                  <th className="tact" style={{ width: 130 }} aria-label="Actions" />
+                  <th>{t("Name")}</th>
+                  <th>{t("Kind")}</th>
+                  <th>{t("Source")}</th>
+                  <th>{t("Connected")}</th>
+                  <th className="tact" style={{ width: 130 }} aria-label={t("Actions")} />
                 </tr>
               </thead>
               <tbody>
                 {connections.map((c) => (
                   <tr key={String(c.Name_str)} className="clickable" onClick={() => setOpen(String(c.Name_str))}>
                     <td className="tmono">{String(c.Name_str)}</td>
-                    <td><Pill kind="idle" label={CONNECTION_TYPES[Number(c.Type_u32)] ?? `type ${c.Type_u32}`} /></td>
+                    <td><Pill kind="idle" label={CONNECTION_TYPES[Number(c.Type_u32)] ?? t("type {type}", { type: String(c.Type_u32) })} /></td>
                     <td className="tmono">
                       {String(c.Hostname_str || c.Ip_ip)}:{String(c.Port_u32)}
                       {c.Hostname_str ? <span className="tsub">{String(c.Ip_ip)}</span> : null}
@@ -74,7 +75,7 @@ export function Connections() {
                           setKilling(c);
                         }}
                       >
-                        <IconClose size={13} /> Disconnect
+                        <IconClose size={13} /> {t("Disconnect")}
                       </button>
                     </td>
                   </tr>
@@ -88,13 +89,13 @@ export function Connections() {
       {open && <ConnectionSheet name={open} onClose={() => setOpen(null)} />}
       {killing && (
         <ConfirmSheet
-          title="Disconnect this connection?"
-          verb="Disconnect"
+          title={t("Disconnect this connection?")}
+          verb={t("Disconnect")}
           body={
             <>
-              <span className="mono">{String(killing.Name_str)}</span> from{" "}
-              <span className="mono">{String(killing.Ip_ip)}</span> is cut. Cutting a management
-              connection may sign out an administrator — possibly you.
+              <span className="mono">{String(killing.Name_str)}</span> {t("from")}{" "}
+              <span className="mono">{String(killing.Ip_ip)}</span>{" "}
+              {t("is cut. Cutting a management connection may sign out an administrator — possibly you.")}
             </>
           }
           onClose={() => setKilling(null)}
@@ -111,6 +112,7 @@ export function Connections() {
 function ConnectionSheet({ name, onClose }: { name: string; onClose: () => void }) {
   const [detail, setDetail] = useState<Wire | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   usePoll(
     async () => {
@@ -125,16 +127,16 @@ function ConnectionSheet({ name, onClose }: { name: string; onClose: () => void 
   );
 
   return (
-    <Sheet title="Connection" subtitle={name} onClose={onClose}>
+    <Sheet title={t("Connection")} subtitle={name} onClose={onClose}>
       {error && <div className="alert alert--err">{error}</div>}
       {!detail && !error && <LoadingBlock />}
       {detail && (
         <KV
           rows={[
-            ["source", `${detail.Hostname_str || detail.Ip_ip}:${detail.Port_u32}`],
-            ["connected", formatDate(detail.ConnectedTime_dt as string)],
-            ["client", `${detail.ClientStr_str ?? "—"} ${detail.ClientVer_u32 ?? ""}`],
-            ["server", `${detail.ServerStr_str ?? "—"} ${detail.ServerVer_u32 ?? ""}`],
+            [t("source"), `${detail.Hostname_str || detail.Ip_ip}:${detail.Port_u32}`],
+            [t("connected"), formatDate(detail.ConnectedTime_dt as string)],
+            [t("client"), `${detail.ClientStr_str ?? "—"} ${detail.ClientVer_u32 ?? ""}`],
+            [t("server"), `${detail.ServerStr_str ?? "—"} ${detail.ServerVer_u32 ?? ""}`],
           ]}
         />
       )}

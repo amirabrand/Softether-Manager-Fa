@@ -22,6 +22,7 @@ import { Sheet } from "../ui/Sheet";
 import { Spark } from "../components/ResourceCards";
 import { Link, navigate, seg } from "../lib/router";
 import { AUTH_TYPES, isNever, userBytes, SESSION_TYPE } from "../lib/se";
+import { useT } from "../lib/i18n";
 import { useToast } from "../lib/toast";
 import { formatBytes, formatCount, formatDate, formatDuration, timeAgo } from "../lib/util";
 import { BrandMark, IconDownload, IconTrash } from "../ui/Icon";
@@ -33,12 +34,13 @@ import { SessionSheet, SessionsTable } from "./hub/HubSessions";
  *  -- move bytes that SoftEther reports without a direction split. One line
  *  of what actually moved is the honest picture; two lines of zeroes are not. */
 function CombinedSessionChart({ usage }: { usage: Wire }) {
+  const t = useT();
   const points: Wire[] = Array.isArray(usage.combined) ? usage.combined : [];
   const values = points.map((p) => Number(p.total) || 0);
   if (!values.some((v) => v > 0)) {
     return (
       <p className="micro">
-        Nothing moved during this session, or it was shorter than one sampling interval.
+        {t("Nothing moved during this session, or it was shorter than one sampling interval.")}
       </p>
     );
   }
@@ -46,14 +48,15 @@ function CombinedSessionChart({ usage }: { usage: Wire }) {
     <div style={{ display: "grid", gap: "var(--s2)" }}>
       <div className="chart__legend">
         <span className="chart__key">
-          <i style={{ background: "var(--chart-recv)" }} /> Traffic
+          <i style={{ background: "var(--chart-recv)" }} /> {t("Traffic")}
           <b className="mono">{formatBytes(Number(usage.total_combined) || 0)}</b>
         </span>
       </div>
       <Spark values={values} color="var(--chart-recv)" />
       <p className="micro">
-        This session reports no split between download and upload, so this is the total it moved
-        over its life, sampled every interval.
+        {t(
+          "This session reports no split between download and upload, so this is the total it moved over its life, sampled every interval.",
+        )}
       </p>
     </div>
   );
@@ -66,6 +69,7 @@ function CombinedSessionChart({ usage }: { usage: Wire }) {
  * chart says rather than drawing a flat line that means nothing.
  */
 function SessionUsageSheet({ hub, row, onClose }: { hub: string; row: Wire; onClose: () => void }) {
+  const t = useT();
   const [usage, setUsage] = useState<(Usage & { session: Wire } & Wire) | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -81,32 +85,34 @@ function SessionUsageSheet({ hub, row, onClose }: { hub: string; row: Wire; onCl
 
   return (
     <Sheet
-      title="Session"
+      title={t("Session")}
       subtitle={`${row.username} · ${formatDate(String(row.started_date))}`}
       onClose={onClose}
       wide
-      footer={<button className="btn" onClick={onClose}>Close</button>}
+      footer={<button className="btn" onClick={onClose}>{t("Close")}</button>}
     >
       <div style={{ display: "grid", gap: "var(--s3)" }}>
         <KV
           rows={[
-            ["client IP", String(row.client_ip || "—")],
-            ["client host", String(row.client_hostname || "—")],
-            ["started", formatDate(String(row.started_date))],
-            ["ended", row.ended_date ? formatDate(String(row.ended_date)) : "still connected"],
-            ["duration", formatDuration(duration)],
-            ["downloaded", formatBytes(Number(row.download_bytes))],
-            ["uploaded", formatBytes(Number(row.upload_bytes))],
+            [t("client IP"), String(row.client_ip || "—")],
+            [t("client host"), String(row.client_hostname || "—")],
+            [t("started"), formatDate(String(row.started_date))],
+            [t("ended"), row.ended_date ? formatDate(String(row.ended_date)) : t("still connected")],
+            [t("duration"), formatDuration(duration)],
+            [t("downloaded"), formatBytes(Number(row.download_bytes))],
+            [t("uploaded"), formatBytes(Number(row.upload_bytes))],
           ]}
         />
         {error && <div className="alert alert--err">{error}</div>}
         {!usage && !error ? (
-          <LoadingBlock label="loading this session's traffic" />
+          <LoadingBlock label={t("loading this session's traffic")} />
         ) : usage ? (
           usage.split_available ? (
             <TrafficChart
               usage={usage}
-              emptyLabel="This session was shorter than one sampling interval, so there is no curve to draw — the totals above are what it moved."
+              emptyLabel={t(
+                "This session was shorter than one sampling interval, so there is no curve to draw — the totals above are what it moved.",
+              )}
             />
           ) : (
             <CombinedSessionChart usage={usage} />
@@ -140,6 +146,7 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
   const [savingPolicy, setSavingPolicy] = useState(false);
   const [openSession, setOpenSession] = useState<string | null>(null);
   const [openHistory, setOpenHistory] = useState<Wire | null>(null);
+  const t = useT();
   const { guard, push } = useToast();
 
   const load = useCallback(async () => {
@@ -188,7 +195,7 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
       body[k] = v;
     }
     Object.assign(body, policy);
-    const ok = await guard(() => api.setUser(hub, name, body), "Policy saved.");
+    const ok = await guard(() => api.setUser(hub, name, body), t("Policy saved."));
     setSavingPolicy(false);
     if (ok) {
       setPolicyDirty(false);
@@ -199,7 +206,7 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
   if (!user) {
     return (
       <div className="page">
-        <LoadingBlock label={`loading ${name}`} />
+        <LoadingBlock label={t("loading {name}", { name })} />
       </div>
     );
   }
@@ -214,18 +221,18 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
         title={<span className="mono">{name}</span>}
         sub={
           <>
-            <Link to={`/hub/${seg(hub)}/users`} className="linkish">← users</Link>
-            {" "}· hub <span className="mono">{hub}</span>
+            <Link to={`/hub/${seg(hub)}/users`} className="linkish">{t("← users")}</Link>
+            {" "}· {t("hub")} <span className="mono">{hub}</span>
           </>
         }
         actions={
           <>
             <button className="btn btn--primary" onClick={() => setDownloading(true)}>
-              <IconDownload size={15} /> Download .vpn
+              <IconDownload size={15} /> {t("Download .vpn")}
             </button>
-            <button className="btn" onClick={() => setEditing(true)}>Edit profile</button>
+            <button className="btn" onClick={() => setEditing(true)}>{t("Edit profile")}</button>
             <button className="btn btn--danger" onClick={() => setDeleting(true)}>
-              <IconTrash size={14} /> Delete
+              <IconTrash size={14} /> {t("Delete")}
             </button>
           </>
         }
@@ -242,27 +249,27 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
           <div className="idcard__name mono">{name}</div>
           {user.Realname_utf ? <div className="idcard__real">{String(user.Realname_utf)}</div> : null}
           <div className="idcard__meta">
-            <span className="chip"><i>auth</i>{AUTH_TYPES[Number(user.AuthType_u32)] ?? "?"}</span>
-            <span className="chip"><i>group</i>{String(user.GroupName_str || "—")}</span>
-            <span className="chip"><i>expires</i>{isNever(user.ExpireTime_dt as string) ? "never" : formatDate(user.ExpireTime_dt as string)}</span>
+            <span className="chip"><i>{t("auth")}</i>{AUTH_TYPES[Number(user.AuthType_u32)] ?? "?"}</span>
+            <span className="chip"><i>{t("group")}</i>{String(user.GroupName_str || "—")}</span>
+            <span className="chip"><i>{t("expires")}</i>{isNever(user.ExpireTime_dt as string) ? t("never") : formatDate(user.ExpireTime_dt as string)}</span>
           </div>
           <div className="idcard__foot">
-            <div className="stat"><span className="stat__n">{formatCount(Number(user.NumLogin_u32))}</span><span className="micro">logins</span></div>
-            <div className="stat"><span className="stat__n">{formatBytes(bytes.recv)}</span><span className="micro">downloaded</span></div>
-            <div className="stat"><span className="stat__n">{formatBytes(bytes.send)}</span><span className="micro">uploaded</span></div>
-            <div className="stat"><span className="stat__n">{sessions?.length ?? 0}</span><span className="micro">online now</span></div>
+            <div className="stat"><span className="stat__n">{formatCount(Number(user.NumLogin_u32))}</span><span className="micro">{t("logins")}</span></div>
+            <div className="stat"><span className="stat__n">{formatBytes(bytes.recv)}</span><span className="micro">{t("downloaded")}</span></div>
+            <div className="stat"><span className="stat__n">{formatBytes(bytes.send)}</span><span className="micro">{t("uploaded")}</span></div>
+            <div className="stat"><span className="stat__n">{sessions?.length ?? 0}</span><span className="micro">{t("online now")}</span></div>
           </div>
         </div>
 
         <div className="card" style={{ padding: "var(--s4)" }}>
           <KV
             rows={[
-              ["created", formatDate(user.CreatedTime_dt as string)],
-              ["updated", formatDate(user.UpdatedTime_dt as string)],
-              ["note", String(user.Note_utf || "—")],
-              ...(Number(user.AuthType_u32) === 3 && user.CommonName_utf ? [["required CN", String(user.CommonName_utf)] as [string, string]] : []),
-              ...(Number(user.AuthType_u32) === 4 ? [["RADIUS user", String(user.RadiusUsername_utf || name)] as [string, string]] : []),
-              ...(Number(user.AuthType_u32) === 5 ? [["NT user", String(user.NtUsername_utf || name)] as [string, string]] : []),
+              [t("created"), formatDate(user.CreatedTime_dt as string)],
+              [t("updated"), formatDate(user.UpdatedTime_dt as string)],
+              [t("note"), String(user.Note_utf || "—")],
+              ...(Number(user.AuthType_u32) === 3 && user.CommonName_utf ? [[t("required CN"), String(user.CommonName_utf)] as [string, string]] : []),
+              ...(Number(user.AuthType_u32) === 4 ? [[t("RADIUS user"), String(user.RadiusUsername_utf || name)] as [string, string]] : []),
+              ...(Number(user.AuthType_u32) === 5 ? [[t("NT user"), String(user.NtUsername_utf || name)] as [string, string]] : []),
             ]}
           />
         </div>
@@ -272,10 +279,10 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
         <>
           <SectionTitle
             actions={
-              <button className="btn btn--sm" onClick={() => setEditing(true)}>Change</button>
+              <button className="btn btn--sm" onClick={() => setEditing(true)}>{t("Change")}</button>
             }
           >
-            Traffic limit
+            {t("Traffic limit")}
           </SectionTitle>
           <div className="card" style={{ padding: "var(--s4)", maxWidth: 640 }}>
             <QuotaEnforceSwitch quota={quota} subject="user" onChanged={setQuota} />
@@ -284,24 +291,24 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
         </>
       )}
 
-      <SectionTitle actions={<RangeSeg hours={hours} onChange={setHours} />}>Usage</SectionTitle>
+      <SectionTitle actions={<RangeSeg hours={hours} onChange={setHours} />}>{t("Usage")}</SectionTitle>
       <div className="card" style={{ padding: "var(--s4)" }}>
         {usage ? (
           <TrafficChart
             usage={usage}
-            emptyLabel="No samples in this window — usage builds up as the panel's sampler runs."
+            emptyLabel={t("No samples in this window — usage builds up as the panel's sampler runs.")}
           />
         ) : (
-          <LoadingBlock label="loading usage" />
+          <LoadingBlock label={t("loading usage")} />
         )}
       </div>
 
-      <SectionTitle count={sessions?.length}>Live sessions</SectionTitle>
+      <SectionTitle count={sessions?.length}>{t("Live sessions")}</SectionTitle>
       {sessions === null ? (
         <LoadingBlock />
       ) : sessions.length === 0 ? (
-        <Empty title="not connected right now">
-          Sessions appear here the moment this user connects, and can be cut from here too.
+        <Empty title={t("not connected right now")}>
+          {t("Sessions appear here the moment this user connects, and can be cut from here too.")}
         </Empty>
       ) : (
         <SessionsTable
@@ -311,18 +318,19 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
             guard(async () => {
               await api.killSession(hub, String(s.Name_str));
               await load();
-            }, "Session disconnected.")
+            }, t("Session disconnected."))
           }
         />
       )}
 
-      <SectionTitle count={history?.length}>Session history</SectionTitle>
+      <SectionTitle count={history?.length}>{t("Session history")}</SectionTitle>
       {history === null ? (
         <LoadingBlock />
       ) : history.length === 0 ? (
-        <Empty title="no logins recorded yet">
-          Every connection this user makes lands here — client IP, when it started and ended,
-          and the bytes it moved — kept for the retention window set in Settings.
+        <Empty title={t("no logins recorded yet")}>
+          {t(
+            "Every connection this user makes lands here — client IP, when it started and ended, and the bytes it moved — kept for the retention window set in Settings.",
+          )}
         </Empty>
       ) : (
         <div className="card tcard">
@@ -330,12 +338,12 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
             <table className="dtable">
               <thead>
                 <tr>
-                  <th>Started</th>
-                  <th>Ended</th>
-                  <th>Duration</th>
-                  <th>Client IP</th>
-                  <th>Host</th>
-                  <th>Transferred</th>
+                  <th>{t("Started")}</th>
+                  <th>{t("Ended")}</th>
+                  <th>{t("Duration")}</th>
+                  <th>{t("Client IP")}</th>
+                  <th>{t("Host")}</th>
+                  <th>{t("Transferred")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -346,7 +354,7 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
                   return (
                     <tr key={String(h.id)} className="clickable" onClick={() => setOpenHistory(h)}>
                       <td className="tmono">{formatDate(String(h.started_date))}</td>
-                      <td className="tmono">{h.ended_date ? formatDate(String(h.ended_date)) : <Pill kind="ok" label="connected" />}</td>
+                      <td className="tmono">{h.ended_date ? formatDate(String(h.ended_date)) : <Pill kind="ok" label={t("connected")} />}</td>
                       <td className="tmono">{formatDuration(duration)}</td>
                       <td className="tmono">{String(h.client_ip || "—")}</td>
                       <td className="tmono truncate" style={{ maxWidth: 160 }}>{String(h.client_hostname || "—")}</td>
@@ -363,14 +371,14 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
             shown={shownHistory.length}
             loaded={history.length}
             exhausted={historyExhausted}
-            noun="logins"
+            noun={t("logins")}
             onReveal={revealHistory}
             onLoad={() => loadHistory(Number(history[history.length - 1].id))}
           />
         </div>
       )}
 
-      <SectionTitle>Security policy</SectionTitle>
+      <SectionTitle>{t("Security policy")}</SectionTitle>
       <div className="card" style={{ padding: "var(--s4)", maxWidth: 720 }}>
         {policy && (
           <>
@@ -385,7 +393,7 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
             {policyDirty && (
               <div style={{ display: "flex", gap: "var(--s2)", marginTop: "var(--s3)" }}>
                 <button className="btn btn--primary" onClick={savePolicy} disabled={savingPolicy}>
-                  {savingPolicy && <span className="spin" />} Save policy
+                  {savingPolicy && <span className="spin" />} {t("Save policy")}
                 </button>
                 <button
                   className="btn"
@@ -394,7 +402,7 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
                     setPolicyDirty(false);
                   }}
                 >
-                  Discard
+                  {t("Discard")}
                 </button>
               </div>
             )}
@@ -419,19 +427,19 @@ export function UserDetail({ hub, name }: { hub: string; name: string }) {
       )}
       {deleting && (
         <ConfirmSheet
-          title={`Delete ${name}?`}
-          verb="Delete user"
+          title={t("Delete {name}?", { name })}
+          verb={t("Delete user")}
           typed={name}
           body={
             <>
-              The user is removed from hub <b>{hub}</b> and any live session it has is cut. This
-              cannot be undone.
+              {t("The user is removed from hub")} <b>{hub}</b>{" "}
+              {t("and any live session it has is cut. This cannot be undone.")}
             </>
           }
           onClose={() => setDeleting(false)}
           onConfirm={async () => {
             await api.deleteUser(hub, name);
-            push("ok", `${name} deleted.`);
+            push("ok", t("{name} deleted.", { name }));
             navigate(`/hub/${seg(hub)}/users`);
           }}
         />

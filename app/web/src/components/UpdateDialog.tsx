@@ -1,6 +1,7 @@
 "use client";
 
 import { Terminal } from "./Terminal";
+import { useT } from "../lib/i18n";
 import { useUpdate } from "../lib/update";
 import { Sheet } from "../ui/Sheet";
 import { Pill } from "../ui/Status";
@@ -15,6 +16,7 @@ import { Pill } from "../ui/Status";
 export function UpdateDialog() {
   const { status, error, isChecking, isStarting, startError, applying, reloading, isOpen, close, check, start } =
     useUpdate();
+  const t = useT();
   if (!isOpen) return null;
 
   const checkInfo = status?.check ?? {};
@@ -27,14 +29,14 @@ export function UpdateDialog() {
 
   return (
     <Sheet
-      title="Updates"
-      subtitle={`running ${checkInfo.current_version ?? "—"}`}
+      title={t("Updates")}
+      subtitle={t("running {v}", { v: String(checkInfo.current_version ?? "—") })}
       onClose={close}
       wide
       footer={
         <>
           <button className="btn" onClick={() => void check()} disabled={isChecking || applying}>
-            {isChecking && <span className="spin" />} Check again
+            {isChecking && <span className="spin" />} {t("Check again")}
           </button>
           <button
             className="btn btn--primary"
@@ -42,7 +44,7 @@ export function UpdateDialog() {
             disabled={!available || !canApply || applying || isStarting}
           >
             {(applying || isStarting) && <span className="spin" />}
-            {applying ? "Updating…" : available ? `Install ${latest.version}` : "Up to date"}
+            {applying ? t("Updating…") : available ? t("Install {v}", { v: String(latest.version) }) : t("Up to date")}
           </button>
         </>
       }
@@ -52,14 +54,14 @@ export function UpdateDialog() {
         {startError && <div className="alert alert--err">{startError}</div>}
 
         <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)", flexWrap: "wrap" }}>
-          {stage === "running" && <Pill kind="busy" label="update running" />}
-          {stage === "succeeded" && <Pill kind="ok" label="updated" />}
-          {reloading && <span className="micro">reloading the panel…</span>}
-          {stage === "failed" && <Pill kind="err" label="update failed" />}
-          {available && stage !== "running" && <Pill kind="warn" label={`${latest.version} available`} />}
+          {stage === "running" && <Pill kind="busy" label={t("update running")} />}
+          {stage === "succeeded" && <Pill kind="ok" label={t("updated")} />}
+          {reloading && <span className="micro">{t("reloading the panel…")}</span>}
+          {stage === "failed" && <Pill kind="err" label={t("update failed")} />}
+          {available && stage !== "running" && <Pill kind="warn" label={t("{v} available", { v: String(latest.version) })} />}
           {!available && stage === "idle" && !checkInfo.error && (
             <span className="micro">
-              {checkInfo.checked_at ? "This is the newest release." : "Not checked yet."}
+              {checkInfo.checked_at ? t("This is the newest release.") : t("Not checked yet.")}
             </span>
           )}
         </div>
@@ -77,7 +79,7 @@ export function UpdateDialog() {
               <span>{String(latest.name || latest.version)}</span>
               {latest.url ? (
                 <a href={String(latest.url)} target="_blank" rel="noreferrer">
-                  release page ↗
+                  {t("release page ↗")}
                 </a>
               ) : null}
             </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ErrorAlert, Field, PageHead } from "../components/bits";
 import { api } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { navigate } from "../lib/router";
 import { useServer } from "../lib/server";
 import { useToast } from "../lib/toast";
@@ -17,6 +18,7 @@ import { IconCheck } from "../ui/Icon";
 export function Connect() {
   const { refresh } = useServer();
   const { push } = useToast();
+  const t = useT();
   const [host, setHost] = useState("127.0.0.1");
   const [port, setPort] = useState(5555);
   const [password, setPassword] = useState("");
@@ -42,7 +44,7 @@ export function Connect() {
     setTestResult(null);
     try {
       const r = await api.testConnection({ host, port, password });
-      setTestResult(`${r.version} answered on ${host}:${port}.`);
+      setTestResult(t("{version} answered on {host}:{port}.", { version: r.version, host, port }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -59,7 +61,7 @@ export function Connect() {
         port,
         password: password || (configured ? null : ""),
       });
-      push("ok", "Connected.");
+      push("ok", t("Connected."));
       await refresh();
       navigate("/");
     } catch (e) {
@@ -72,8 +74,8 @@ export function Connect() {
   return (
     <div className="page">
       <PageHead
-        title="Connect to SoftEther"
-        sub="The management port and administrator password of the instance on this machine."
+        title={t("Connect to SoftEther")}
+        sub={t("The management port and administrator password of the instance on this machine.")}
       />
       <div className="card" style={{ padding: "var(--s5)", maxWidth: 560 }}>
         {error && <ErrorAlert>{error}</ErrorAlert>}
@@ -83,32 +85,31 @@ export function Connect() {
           </div>
         )}
         <div className="row2">
-          <Field label="Host" hint="127.0.0.1 unless SoftEther deliberately lives elsewhere.">
+          <Field label={t("Host")} hint={t("127.0.0.1 unless SoftEther deliberately lives elsewhere.")}>
             <input className="input mono" value={host} onChange={(e) => setHost(e.target.value)}
               autoCapitalize="none" spellCheck={false} inputMode="url" />
           </Field>
-          <Field label="Management port" hint="5555 on a stock install; 443 and 992 also answer.">
+          <Field label={t("Management port")} hint={t("5555 on a stock install; 443 and 992 also answer.")}>
             <input className="input mono" type="number" min={1} max={65535} value={port}
               onChange={(e) => setPort(Number(e.target.value))} inputMode="numeric" />
           </Field>
         </div>
         <Field
-          label={configured ? "Administrator password (empty keeps the stored one)" : "Administrator password"}
+          label={configured ? t("Administrator password (empty keeps the stored one)") : t("Administrator password")}
         >
           <input className="input" type="password" value={password}
             onChange={(e) => setPassword(e.target.value)} autoComplete="off" />
         </Field>
         <div style={{ display: "flex", gap: "var(--s2)", marginTop: "var(--s2)" }}>
           <button className="btn" onClick={test} disabled={busy !== null || (!password && !configured)}>
-            {busy === "test" && <span className="spin" />} Test
+            {busy === "test" && <span className="spin" />} {t("Test")}
           </button>
           <button className="btn btn--primary" onClick={save} disabled={busy !== null || (!password && !configured)}>
-            {busy === "save" && <span className="spin" />} Save & connect
+            {busy === "save" && <span className="spin" />} {t("Save & connect")}
           </button>
         </div>
         <p className="hint" style={{ marginTop: "var(--s3)" }}>
-          No SoftEther on this machine yet? Install it first — the panel manages an existing
-          instance; it does not install one.
+          {t("No SoftEther on this machine yet? Install it first — the panel manages an existing instance; it does not install one.")}
         </p>
       </div>
     </div>

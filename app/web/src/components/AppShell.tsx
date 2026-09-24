@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "../lib/auth";
+import { useT } from "../lib/i18n";
 import { useServer } from "../lib/server";
 import { Link, back, navigate, seg, useRoute } from "../lib/router";
 import { useUpdate } from "../lib/update";
@@ -22,6 +23,7 @@ import {
   IconUsers,
 } from "../ui/Icon";
 import { useTheme } from "../ui/theme";
+import { useI18n } from "../lib/i18n";
 
 /**
  * Two shells, one component.
@@ -70,17 +72,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 /* ── the desktop sidebar ────────────────────────────────────────────────── */
 
-const DESTINATIONS = [
-  { to: "/users", label: "Users", icon: <IconUsers size={19} /> , match: (p: string) => p === "users" },
-  { to: "/connections", label: "Connections", icon: <IconPulse size={19} />, match: (p: string) => p === "connections" },
-  { to: "/logs", label: "Logs", icon: <IconLogs size={19} />, match: (p: string) => p === "logs" },
-  { to: "/console", label: "API console", icon: <IconTerminal size={19} />, match: (p: string) => p === "console" },
-  { to: "/settings", label: "Settings", icon: <IconSettings size={19} />, match: (p: string) => p === "settings" },
+/** Nav destinations; the labels go through t() so they follow the language. */
+const DESTINATIONS = (t: (key: string) => string) => [
+  { to: "/users", label: t("Users"), icon: <IconUsers size={19} /> , match: (p: string) => p === "users" },
+  { to: "/connections", label: t("Connections"), icon: <IconPulse size={19} />, match: (p: string) => p === "connections" },
+  { to: "/logs", label: t("Logs"), icon: <IconLogs size={19} />, match: (p: string) => p === "logs" },
+  { to: "/console", label: t("API console"), icon: <IconTerminal size={19} />, match: (p: string) => p === "console" },
+  { to: "/settings", label: t("Settings"), icon: <IconSettings size={19} />, match: (p: string) => p === "settings" },
 ];
 
 function Side({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { user, logout } = useAuth();
   const { hubs } = useServer();
+  const t = useT();
   const route = useRoute();
   const active = route.parts[0] ?? "";
   const activeHub = active === "hub" ? route.parts[1] : null;
@@ -112,7 +116,7 @@ function Side({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => voi
   return (
     <aside className="side">
       <div className="side__top">
-        <Link to="/" className="side__brand" aria-label="Dashboard">
+        <Link to="/" className="side__brand" aria-label={t("Dashboard")}>
           <BrandMark size={38} />
           <span className="side__label">
             <span className="side__word">SoftEther</span>
@@ -122,20 +126,20 @@ function Side({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => voi
         <button
           className="icon-btn side__fold"
           onClick={onToggle}
-          title={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
-          aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+          title={collapsed ? t("Expand the sidebar") : t("Collapse the sidebar")}
+          aria-label={collapsed ? t("Expand the sidebar") : t("Collapse the sidebar")}
           aria-expanded={!collapsed}
         >
           <IconChevron size={15} />
         </button>
       </div>
 
-      <nav className="side__nav" aria-label="Primary">
-        {item("/", "Dashboard", <IconPanels size={19} />, dashOn)}
+      <nav className="side__nav" aria-label={t("Primary")}>
+        {item("/", t("Dashboard"), <IconPanels size={19} />, dashOn)}
 
         {!collapsed && hubs && hubs.length > 0 && (
           <div className="side__group">
-            <div className="side__gtitle">Hubs</div>
+            <div className="side__gtitle">{t("Hubs")}</div>
             {hubs.map((h) => {
               const name = String(h.HubName_str);
               return (
@@ -144,7 +148,7 @@ function Side({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => voi
                   className={`side__leaf${activeHub === name ? " on" : ""}`}
                   data-state={h.Online_bool ? "connected" : "disabled"}
                   onClick={() => navigate(`/hub/${seg(name)}`)}
-                  title={`${name} — ${h.Online_bool ? "online" : "offline"}`}
+                  title={`${name} — ${h.Online_bool ? t("online") : t("offline")}`}
                 >
                   <span className="side__dot" />
                   <span className="side__label">{name}</span>
@@ -158,24 +162,25 @@ function Side({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => voi
           <Link
             to={activeHub ? `/hub/${seg(activeHub)}` : "/"}
             className={`side__item${active === "hub" ? " on" : ""}`}
-            title="Hubs"
-            aria-label="Hubs"
+            title={t("Hubs")}
+            aria-label={t("Hubs")}
           >
             <IconHub size={19} />
-            <span className="side__label">Hubs</span>
+            <span className="side__label">{t("Hubs")}</span>
           </Link>
         )}
 
-        {DESTINATIONS.map((d) => item(d.to, d.label, d.icon, d.match(active)))}
+        {DESTINATIONS(t).map((d) => item(d.to, d.label, d.icon, d.match(active)))}
       </nav>
 
       <div className="side__foot">
+        <LangToggle />
         <ThemeToggle />
         <button
           className="side__user"
           onClick={logout}
-          title={`${user ?? ""} — sign out`}
-          aria-label="Sign out"
+          title={`${user ?? ""} — ${t("sign out")}`}
+          aria-label={t("Sign out")}
         >
           <span className="side__coin">{(user ?? "?").slice(0, 1)}</span>
           <span className="side__label truncate">{user}</span>
@@ -191,6 +196,7 @@ function Side({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => voi
 /* ── the utility cluster at the top of the content ──────────────────────── */
 
 function MainBar() {
+  const t = useT();
   const route = useRoute();
   const live =
     route.path === "/" || route.parts[0] === "hub" || route.parts[0] === "connections";
@@ -200,7 +206,7 @@ function MainBar() {
       {live && (
         <span className="mchip mchip--live">
           <span className="mchip__dot" style={{ background: "var(--ok)" }} />
-          Live
+          {t("Live")}
         </span>
       )}
       <VersionPill />
@@ -211,25 +217,26 @@ function MainBar() {
 /** One server, one verdict. */
 function HealthChip() {
   const { health, probe } = useServer();
+  const t = useT();
   if (health === "probing") return null;
   if (health === "online") {
     return (
       <span className="mchip mchip--ok">
         <IconCheck size={13} />
-        VPN server up
+        {t("VPN server up")}
       </span>
     );
   }
   if (health === "unconfigured") {
     return (
       <Link to="/connect" className="mchip">
-        not connected
+        {t("not connected")}
       </Link>
     );
   }
   return (
     <span className="mchip mchip--err" title={probe?.error ?? ""}>
-      VPN server down
+      {t("VPN server down")}
     </span>
   );
 }
@@ -237,18 +244,19 @@ function HealthChip() {
 /* ── mobile chrome ──────────────────────────────────────────────────────── */
 
 function TopBar() {
+  const t = useT();
   const route = useRoute();
   const p = route.parts;
 
   const isPushed = p.length > 0 && !(p[0] === "settings" && p.length === 1) && p[0] !== "users";
-  let title = "Dashboard";
-  if (p[0] === "users") title = "Users";
-  else if (p[0] === "settings") title = "Settings";
-  else if (p[0] === "connect") title = "Connect";
-  else if (p[0] === "server-settings") title = "Server settings";
-  else if (p[0] === "connections") title = "Connections";
-  else if (p[0] === "logs") title = "Logs";
-  else if (p[0] === "console") title = "Console";
+  let title = t("Dashboard");
+  if (p[0] === "users") title = t("Users");
+  else if (p[0] === "settings") title = t("Settings");
+  else if (p[0] === "connect") title = t("Connect");
+  else if (p[0] === "server-settings") title = t("Server settings");
+  else if (p[0] === "connections") title = t("Connections");
+  else if (p[0] === "logs") title = t("Logs");
+  else if (p[0] === "console") title = t("Console");
   else if (p[0] === "hub" && p[1]) {
     title = p[2] === "user" && p[3] ? p[3] : p[1];
   }
@@ -256,13 +264,14 @@ function TopBar() {
   return (
     <header className="topbar">
       {isPushed && p.length > 0 ? (
-        <button className="topbar__back" onClick={back} aria-label="Back">
+        <button className="topbar__back" onClick={back} aria-label={t("Back")}>
           <IconBack size={20} />
         </button>
       ) : (
         <BrandMark size={28} />
       )}
       <span className="topbar__title">{title}</span>
+      <LangToggle compact />
       <ThemeToggle />
       <VersionPill compact />
     </header>
@@ -270,6 +279,7 @@ function TopBar() {
 }
 
 function TabBar() {
+  const t = useT();
   const route = useRoute();
   const active = route.parts[0] ?? "";
   const tab = (match: (p: string) => boolean, to: string, label: string, icon: React.ReactNode) => (
@@ -279,25 +289,42 @@ function TabBar() {
     </Link>
   );
   return (
-    <nav className="tabbar" aria-label="Primary">
-      {tab((p) => p === "" || p === "hub" || p === "connect", "/", "Dashboard", <IconPanels />)}
-      {tab((p) => p === "users", "/users", "Users", <IconUsers />)}
-      {tab((p) => p === "settings", "/settings", "Settings", <IconSettings />)}
+    <nav className="tabbar" aria-label={t("Primary")}>
+      {tab((p) => p === "" || p === "hub" || p === "connect", "/", t("Dashboard"), <IconPanels />)}
+      {tab((p) => p === "users", "/users", t("Users"), <IconUsers />)}
+      {tab((p) => p === "settings", "/settings", t("Settings"), <IconSettings />)}
     </nav>
   );
 }
 
 /* ── shared chrome ──────────────────────────────────────────────────────── */
 
+/** The language switch: shows the language you would get by clicking it. */
+export function LangToggle({ compact }: { compact?: boolean }) {
+  const { lang, setLang } = useI18n();
+  const toEnglish = lang === "fa";
+  return (
+    <button
+      className="icon-btn lang-btn"
+      onClick={() => setLang(toEnglish ? "en" : "fa")}
+      title={toEnglish ? "Switch to English" : "تغییر به فارسی"}
+      aria-label={toEnglish ? "Switch to English" : "تغییر به فارسی"}
+    >
+      <span className="lang-btn__t">{compact ? (toEnglish ? "EN" : "فا") : toEnglish ? "English" : "فارسی"}</span>
+    </button>
+  );
+}
+
 export function ThemeToggle() {
   const { resolved, toggle } = useTheme();
+  const t = useT();
   const dark = resolved === "dark";
   return (
     <button
       className="icon-btn"
       onClick={toggle}
-      title={dark ? "Switch to light" : "Switch to dark"}
-      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+      title={dark ? t("Switch to light") : t("Switch to dark")}
+      aria-label={dark ? t("Switch to light theme") : t("Switch to dark theme")}
     >
       {dark ? <IconSun size={17} /> : <IconMoon size={17} />}
     </button>
@@ -308,6 +335,7 @@ export function ThemeToggle() {
  *  version number is find out whether it is the current one. */
 export function VersionPill({ compact }: { compact?: boolean }) {
   const { status, open, applying } = useUpdate();
+  const t = useT();
   const available = Boolean(status?.check?.update_available);
   const v = String(status?.check?.current_version ?? "");
 
@@ -317,10 +345,10 @@ export function VersionPill({ compact }: { compact?: boolean }) {
       onClick={open}
       title={
         applying
-          ? "An update is running"
+          ? t("An update is running")
           : available
-            ? `Version ${status?.check?.latest?.version} is available`
-            : "Check for updates"
+            ? t("Version {v} is available", { v: String(status?.check?.latest?.version) })
+            : t("Check for updates")
       }
     >
       {applying && <span className="spin" style={{ width: 11, height: 11 }} />}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "../lib/i18n";
 
 /**
  * The log, as a real terminal -- because here that is literally true.
@@ -40,6 +41,7 @@ export function Terminal({
 }) {
   const body = useRef<HTMLDivElement>(null);
   const [stick, setStick] = useState(true);
+  const t = useT();
 
   useEffect(() => {
     const el = body.current;
@@ -57,15 +59,15 @@ export function Terminal({
       <div className="term__head">
         <span className="mono">{label}</span>
         <span className="mono">
-          {lines.length.toLocaleString()} {lines.length === 1 ? "line" : "lines"}
-          {live && " · live"}
+          {lines.length.toLocaleString()} {lines.length === 1 ? t("line") : t("lines")}
+          {live && ` · ${t("live")}`}
         </span>
       </div>
       <div className="term__body" ref={body} onScroll={onScroll}>
         {lines.length === 0 && (
           <div className="term__ln term__ln--mgr">
             <span className="term__g">»</span>
-            <span>waiting for output…</span>
+            <span>{t("waiting for output…")}</span>
           </div>
         )}
         {lines.map((l, i) => {
@@ -81,7 +83,7 @@ export function Terminal({
       </div>
       {!stick && (
         <button className="term__stick" onClick={() => setStick(true)}>
-          jump to latest
+          {t("jump to latest")}
         </button>
       )}
     </div>

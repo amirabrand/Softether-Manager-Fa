@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Empty, ErrorAlert, LoadingBlock, PageHead, SearchBox } from "../components/bits";
 import { api, type Wire } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { useToast } from "../lib/toast";
 import { IconPlay, IconTerminal } from "../ui/Icon";
 
@@ -22,6 +23,7 @@ export function Console() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { push } = useToast();
+  const t = useT();
 
   useEffect(() => {
     void api.rpcMethods().then(setMethods).catch(() => setMethods([]));
@@ -49,7 +51,7 @@ export function Console() {
     try {
       parsed = params.trim() ? JSON.parse(params) : {};
     } catch {
-      setError("The parameters are not valid JSON.");
+      setError(t("The parameters are not valid JSON."));
       return;
     }
     setBusy(true);
@@ -57,7 +59,7 @@ export function Console() {
     try {
       const r = await api.rpcCall(String(selected.name), parsed);
       setResult(JSON.stringify(r, null, 2));
-      push("ok", `${selected.name} answered.`);
+      push("ok", t("{name} answered.", { name: String(selected.name) }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setResult(null);
@@ -69,15 +71,15 @@ export function Console() {
   return (
     <div className="page">
       <PageHead
-        title="API console"
-        sub="every documented RPC, raw"
+        title={t("API console")}
+        sub={t("every documented RPC, raw")}
       />
       <div className="console">
         <div className="console__list">
           {/* the box flexes horizontally; left in the column flow it would
               stretch its height instead */}
           <div style={{ display: "flex" }}>
-            <SearchBox value={query} onChange={setQuery} placeholder="method name…" />
+            <SearchBox value={query} onChange={setQuery} placeholder={t("method name…")} />
           </div>
           <div className="console__methods">
             {filtered === null ? (
@@ -99,9 +101,8 @@ export function Console() {
 
         <div className="console__work">
           {!selected ? (
-            <Empty title="pick a method">
-              The parameters template fills in with the documented example values; edit and run.
-              Writes here are as real as anywhere else in the panel.
+            <Empty title={t("pick a method")}>
+              {t("The parameters template fills in with the documented example values; edit and run. Writes here are as real as anywhere else in the panel.")}
             </Empty>
           ) : (
             <>
@@ -110,7 +111,7 @@ export function Console() {
                 <span className="mono">{String(selected.name)}</span>
               </div>
               <p className="lede" style={{ margin: "var(--s2) 0 var(--s3)" }}>{String(selected.desc || selected.title)}</p>
-              <div className="micro" style={{ marginBottom: 6 }}>parameters</div>
+              <div className="micro" style={{ marginBottom: 6 }}>{t("parameters")}</div>
               <textarea
                 className="textarea mono"
                 rows={Math.min(16, Math.max(4, params.split("\n").length))}
@@ -120,13 +121,13 @@ export function Console() {
               />
               <div style={{ display: "flex", gap: "var(--s2)", margin: "var(--s3) 0" }}>
                 <button className="btn btn--primary" onClick={call} disabled={busy}>
-                  {busy ? <span className="spin" /> : <IconPlay size={14} />} Call {String(selected.name)}
+                  {busy ? <span className="spin" /> : <IconPlay size={14} />} {t("Call")} {String(selected.name)}
                 </button>
               </div>
               {error && <ErrorAlert>{error}</ErrorAlert>}
               {result && (
                 <>
-                  <div className="micro" style={{ margin: "var(--s2) 0 6px" }}>result</div>
+                  <div className="micro" style={{ margin: "var(--s2) 0 6px" }}>{t("result")}</div>
                   <pre className="console__result mono">{result}</pre>
                 </>
               )}

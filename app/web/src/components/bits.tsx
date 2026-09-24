@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Sheet } from "../ui/Sheet";
 import { IconRefresh, IconSearch } from "../ui/Icon";
+import { useT } from "../lib/i18n";
 import { useToast } from "../lib/toast";
 import { useRate, type PollRate } from "../lib/rates";
 
@@ -47,9 +48,10 @@ export function SectionTitle({ children, count, actions }: { children: ReactNode
 }
 
 export function LoadingBlock({ label = "loading" }: { label?: string }) {
+  const t = useT();
   return (
     <div className="loading">
-      <span className="spin" /> {label}
+      <span className="spin" /> {t(label)}
     </div>
   );
 }
@@ -125,10 +127,11 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
 }
 
 export function RefreshButton({ onClick, busy }: { onClick: () => void; busy?: boolean }) {
+  const t = useT();
   return (
-    <button className="btn btn--sm" onClick={onClick} disabled={busy} title="Refresh">
+    <button className="btn btn--sm" onClick={onClick} disabled={busy} title={t("Refresh")}>
       {busy ? <span className="spin" /> : <IconRefresh size={14} />}
-      Refresh
+      {t("Refresh")}
     </button>
   );
 }
@@ -159,6 +162,7 @@ export function ConfirmSheet({
   const [busy, setBusy] = useState(false);
   const armed = !typed || text === typed;
   const { guard } = useToast();
+  const t = useT();
 
   const go = async () => {
     setBusy(true);
@@ -174,7 +178,7 @@ export function ConfirmSheet({
       footer={
         <>
           <button className="btn" onClick={onClose}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button className={`btn ${danger ? "btn--danger" : "btn--primary"}`} disabled={!armed || busy} onClick={go}>
             {busy && <span className="spin" />}
@@ -186,7 +190,7 @@ export function ConfirmSheet({
       <div style={{ display: "grid", gap: "var(--s3)" }}>
         <div className="lede">{body}</div>
         {typed && (
-          <Field label={<>Type <span className="mono">{typed}</span> to confirm</>}>
+          <Field label={<>{t("Type")} <span className="mono">{typed}</span> {t("to confirm")}</>}>
             <input
               className="input mono"
               value={text}
@@ -237,6 +241,7 @@ export function MoreRows({
   onLoad: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const t = useT();
   const hidden = shown < loaded;
   if (!hidden && exhausted) return null;
   const click = async () => {
@@ -252,11 +257,11 @@ export function MoreRows({
   return (
     <div className="morebar">
       <span className="micro">
-        {shown} of {loaded}
+        {shown} {t("of")} {loaded}
         {exhausted ? "" : "+"} {noun}
       </span>
       <button className="btn btn--sm" onClick={() => void click()} disabled={busy}>
-        {busy && <span className="spin" />} Show more
+        {busy && <span className="spin" />} {t("Show more")}
       </button>
     </div>
   );

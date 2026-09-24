@@ -7,6 +7,7 @@ import { ToastProvider } from "./lib/toast";
 import { UpdateProvider } from "./lib/update";
 import { RatesProvider } from "./lib/rates";
 import { ThemeProvider } from "./ui/theme";
+import { I18nProvider } from "./lib/i18n";
 import { AppShell } from "./components/AppShell";
 import { UpdateDialog } from "./components/UpdateDialog";
 import { Login } from "./screens/Login";
@@ -23,21 +24,23 @@ import { Settings } from "./screens/Settings";
 
 export default function App() {
   return (
-    <RouterProvider>
-      <ThemeProvider>
-        <ToastProvider>
-          <AuthProvider>
-            <RatesProvider>
-            <ServerProvider>
-              <UpdateProvider>
-                <Routed />
-              </UpdateProvider>
-            </ServerProvider>
-            </RatesProvider>
-          </AuthProvider>
-        </ToastProvider>
-      </ThemeProvider>
-    </RouterProvider>
+    <I18nProvider>
+      <RouterProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <RatesProvider>
+              <ServerProvider>
+                <UpdateProvider>
+                  <Routed />
+                </UpdateProvider>
+              </ServerProvider>
+              </RatesProvider>
+            </AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </RouterProvider>
+    </I18nProvider>
   );
 }
 

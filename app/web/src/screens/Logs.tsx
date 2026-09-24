@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Empty, LoadingBlock, PageHead, SectionTitle, usePoll } from "../components/bits";
 import { Terminal } from "../components/Terminal";
 import { api, type Wire } from "../lib/api";
+import { useT } from "../lib/i18n";
 import { Link } from "../lib/router";
 import { useToast } from "../lib/toast";
 import { formatBytes, timeAgo } from "../lib/util";
@@ -24,6 +25,7 @@ export function Logs() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const { push } = useToast();
+  const t = useT();
 
   const load = useCallback(async () => {
     const r = await api.logFiles().catch(() => null);
@@ -56,14 +58,14 @@ export function Logs() {
 
   return (
     <div className="page">
-      <PageHead title="Logs" sub={<Link to="/" className="linkish">← dashboard</Link>} />
+      <PageHead title={t("Logs")} sub={<Link to="/" className="linkish">← {t("dashboard")}</Link>} />
       <div className="logsplit">
         <div>
-          <SectionTitle count={files?.length}>Files</SectionTitle>
+          <SectionTitle count={files?.length}>{t("Files")}</SectionTitle>
           {files === null ? (
             <LoadingBlock />
           ) : files.length === 0 ? (
-            <Empty title="no log files">Logging may be switched off, or nothing has happened yet.</Empty>
+            <Empty title={t("no log files")}>{t("Logging may be switched off, or nothing has happened yet.")}</Empty>
           ) : (
             <div className="rows">
               {files.map((f) => (
@@ -78,8 +80,8 @@ export function Logs() {
                       <span className="mono truncate">{String(f.FilePath_str)}</span>
                     </div>
                     <div className="spec">
-                      <span className="chip"><i>size</i>{formatBytes(Number(f.FileSize_u32))}</span>
-                      <span className="chip"><i>updated</i>{timeAgo(f.UpdatedTime_dt as string)}</span>
+                      <span className="chip"><i>{t("size")}</i>{formatBytes(Number(f.FileSize_u32))}</span>
+                      <span className="chip"><i>{t("updated")}</i>{timeAgo(f.UpdatedTime_dt as string)}</span>
                     </div>
                   </div>
                 </button>
@@ -93,15 +95,15 @@ export function Logs() {
               <Terminal lines={text ? text.split("\n") : []} live={false} label={String(current.FilePath_str)} />
               <div style={{ display: "flex", gap: "var(--s2)", marginTop: "var(--s2)" }}>
                 <button className="btn btn--sm" disabled={loading} onClick={() => void read(current, offset, true)}>
-                  {loading && <span className="spin" />} Read more
+                  {loading && <span className="spin" />} {t("Read more")}
                 </button>
                 <button className="btn btn--sm" disabled={loading} onClick={() => tail(current)}>
-                  Jump to tail
+                  {t("Jump to tail")}
                 </button>
               </div>
             </>
           ) : (
-            <Empty title="pick a file">The last chunk of the file loads first; page forward from there.</Empty>
+            <Empty title={t("pick a file")}>{t("The last chunk of the file loads first; page forward from there.")}</Empty>
           )}
         </div>
       </div>

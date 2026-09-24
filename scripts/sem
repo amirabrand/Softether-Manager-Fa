@@ -190,9 +190,9 @@ run_installer() {
   local refresh="$1"
   shift
   local script="$CACHED_INSTALLER"
+  local fresh=""
 
   if [[ "$refresh" == "refresh" || ! -f "$script" ]]; then
-    local fresh
     fresh="$(mktemp)"
     if curl -fsSL --connect-timeout 15 --retry 2 -o "$fresh" "$INSTALLER_URL" 2>/dev/null ||
        wget -q --timeout=15 --tries=3 -O "$fresh" "$INSTALLER_URL" 2>/dev/null ||
@@ -202,20 +202,27 @@ run_installer() {
       if bash -n "$fresh" 2>/dev/null; then
         script="$fresh"
       else
-        rm -f "$fresh"
+        rm -f "$fresh"; fresh=""
         [[ -f "$CACHED_INSTALLER" ]] || die "The installer downloaded from $INSTALLER_URL is not a valid script."
         warn "The downloaded installer did not parse; using the cached copy."
       fi
     else
-      rm -f "$fresh"
+      rm -f "$fresh"; fresh=""
       [[ -f "$CACHED_INSTALLER" ]] ||
         die "The installer could not be downloaded from $INSTALLER_URL and there is no cached copy."
       warn "The installer could not be downloaded; using the cached copy."
     fi
   fi
 
+  local rc=0
   bash "$script" --repo "$RELEASE_REPO" --release-base "$RELEASE_BASE" \
-    --installer-url "$INSTALLER_URL" "$@"
+    --installer-url "$INSTALLER_URL" "$@" || rc=$?
+  # A successfully used download is not needed again; the cached copy is
+  # refreshed the next time an update runs.
+  if [[ -n "$fresh" && "$fresh" != "$CACHED_INSTALLER" ]]; then
+    rm -f "$fresh"
+  fi
+  return "$rc"
 }
 
 cmd_update() {
@@ -223,7 +230,9 @@ cmd_update() {
   local version="latest" assume_yes=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --version) version="${2:-latest}"; shift 2 ;;
+      --version)
+        (( $# >= 2 )) || die "--version requires a value."
+        version="$2"; shift 2 ;;
       --yes|-y) assume_yes=1; shift ;;
       *) die "Unknown argument to update: $1" ;;
     esac
@@ -248,8 +257,8 @@ cmd_password() {
   local username="" password=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --username) username="${2:-}"; shift 2 ;;
-      --password) password="${2:-}"; shift 2 ;;
+      --username) (( $# >= 2 )) || die "--username requires a value."; username="$2"; shift 2 ;;
+      --password) (( $# >= 2 )) || die "--password requires a value."; password="$2"; shift 2 ;;
       *) die "Unknown argument to password: $1" ;;
     esac
   done
@@ -365,7 +374,7 @@ cmd_logs() {
   local lines=100 follow=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -n) lines="${2:-100}"; shift 2 ;;
+      -n) (( $# >= 2 )) || die "-n requires a number of lines."; lines="$2"; shift 2 ;;
       -f|--follow) follow=1; shift ;;
       *) die "Unknown argument to logs: $1" ;;
     esac

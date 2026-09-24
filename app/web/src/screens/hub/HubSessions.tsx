@@ -5,6 +5,7 @@ import { ConfirmSheet, Empty, KV, LoadingBlock, SearchBox, SectionTitle, usePoll
 import { api, type Wire } from "../../lib/api";
 import { navigate, seg } from "../../lib/router";
 import { SESSION_TYPE } from "../../lib/se";
+import { useT } from "../../lib/i18n";
 import { useToast } from "../../lib/toast";
 import { formatBytes, formatCount, formatDate, timeAgo } from "../../lib/util";
 import { IconClose } from "../../ui/Icon";
@@ -17,6 +18,7 @@ import { Pill } from "../../ui/Status";
  * whose kill button has to work the moment it is pressed.
  */
 export function HubSessions({ hub }: { hub: string }) {
+  const t = useT();
   const [sessions, setSessions] = useState<Wire[] | null>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<string | null>(null);
@@ -42,16 +44,16 @@ export function HubSessions({ hub }: { hub: string }) {
     <>
       <SectionTitle
         count={sessions?.length}
-        actions={<SearchBox value={query} onChange={setQuery} placeholder="user, host, IP…" />}
+        actions={<SearchBox value={query} onChange={setQuery} placeholder={t("user, host, IP…")} />}
       >
-        Sessions
+        {t("Sessions")}
       </SectionTitle>
 
       {filtered == null ? (
-        <LoadingBlock label="loading sessions" />
+        <LoadingBlock label={t("loading sessions")} />
       ) : filtered.length === 0 ? (
-        <Empty title={q ? "nothing matches" : "nobody is connected"}>
-          {q ? "No session matches that search." : "Sessions appear here live as clients connect."}
+        <Empty title={q ? t("nothing matches") : t("nobody is connected")}>
+          {q ? t("No session matches that search.") : t("Sessions appear here live as clients connect.")}
         </Empty>
       ) : (
         <SessionsTable
@@ -65,13 +67,12 @@ export function HubSessions({ hub }: { hub: string }) {
       {open && <SessionSheet hub={hub} name={open} onClose={() => setOpen(null)} />}
       {killing && (
         <ConfirmSheet
-          title="Disconnect this session?"
-          verb="Disconnect"
+          title={t("Disconnect this session?")}
+          verb={t("Disconnect")}
           body={
             <>
               <span className="mono">{String(killing.Name_str)}</span>
-              {killing.Username_str ? <> — user <b>{String(killing.Username_str)}</b></> : null} is cut
-              immediately. The client may simply reconnect unless the user is disabled first.
+              {killing.Username_str ? <> {t("— user")} <b>{String(killing.Username_str)}</b></> : null} {t("is cut immediately. The client may simply reconnect unless the user is disabled first.")}
             </>
           }
           onClose={() => setKilling(null)}
@@ -97,6 +98,7 @@ export function SessionsTable({
   onKill: (s: Wire) => void | Promise<unknown>;
   userLink?: (username: string) => void;
 }) {
+  const t = useT();
   return (
     <>
       {/* desktop table */}
@@ -106,15 +108,15 @@ export function SessionsTable({
             <table className="dtable">
               <thead>
                 <tr>
-                  <th>Session</th>
-                  <th>User</th>
-                  <th>Kind</th>
-                  <th>Source</th>
-                  <th style={{ width: 80 }}>TCP</th>
-                  <th>Packets</th>
-                  <th>Transfer</th>
-                  <th>Started</th>
-                  <th className="tact" style={{ width: 120 }} aria-label="Actions" />
+                  <th>{t("Session")}</th>
+                  <th>{t("User")}</th>
+                  <th>{t("Kind")}</th>
+                  <th>{t("Source")}</th>
+                  <th style={{ width: 80 }}>{t("TCP")}</th>
+                  <th>{t("Packets")}</th>
+                  <th>{t("Transfer")}</th>
+                  <th>{t("Started")}</th>
+                  <th className="tact" style={{ width: 120 }} aria-label={t("Actions")} />
                 </tr>
               </thead>
               <tbody>
@@ -140,7 +142,7 @@ export function SessionsTable({
                         )}
                       </td>
                       <td>
-                        <Pill kind={system ? "idle" : "ok"} label={kind} />
+                        <Pill kind={system ? "idle" : "ok"} label={t(kind)} />
                       </td>
                       <td className="tmono">
                         {String(s.Hostname_str || s.ClientIP_ip || "—")}
@@ -159,7 +161,7 @@ export function SessionsTable({
                               void onKill(s);
                             }}
                           >
-                            <IconClose size={13} /> Kill
+                            <IconClose size={13} /> {t("Kill")}
                           </button>
                         )}
                       </td>
@@ -182,12 +184,12 @@ export function SessionsTable({
               <div className="row__main">
                 <div className="row__name">
                   <span className="mono truncate">{String(s.Username_str || s.Name_str)}</span>
-                  <Pill kind={system ? "idle" : "ok"} label={kind} />
+                  <Pill kind={system ? "idle" : "ok"} label={t(kind)} />
                 </div>
                 <div className="spec">
-                  {s.ClientIP_ip ? <span className="chip"><i>from</i>{String(s.ClientIP_ip)}</span> : null}
-                  <span className="chip"><i>data</i>{formatBytes(Number(s.PacketSize_u64))}</span>
-                  <span className="chip"><i>since</i>{timeAgo(s.CreatedTime_dt as string)}</span>
+                  {s.ClientIP_ip ? <span className="chip"><i>{t("from")}</i>{String(s.ClientIP_ip)}</span> : null}
+                  <span className="chip"><i>{t("data")}</i>{formatBytes(Number(s.PacketSize_u64))}</span>
+                  <span className="chip"><i>{t("since")}</i>{timeAgo(s.CreatedTime_dt as string)}</span>
                 </div>
               </div>
               <div className="row__side">
@@ -199,7 +201,7 @@ export function SessionsTable({
                       void onKill(s);
                     }}
                   >
-                    Kill
+                    {t("Kill")}
                   </button>
                 )}
               </div>
@@ -220,6 +222,7 @@ export function SessionSheet({ hub,
   name: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const [detail, setDetail] = useState<Wire | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -235,27 +238,27 @@ export function SessionSheet({ hub,
   }, [hub, name]);
 
   return (
-    <Sheet title="Session" subtitle={name} onClose={onClose} wide>
+    <Sheet title={t("Session")} subtitle={name} onClose={onClose} wide>
       {error && <div className="alert alert--err">{error}</div>}
       {!detail && !error && <LoadingBlock />}
       {detail && (
         <div style={{ display: "grid", gap: "var(--s4)" }}>
           <KV
             rows={[
-              ["user", String(detail.Username_str || "—")],
-              ["client IP", String(detail.Client_Ip_Address_ip || "—")],
-              ["client host", String(detail.SessionStatus_ClientHostName_str || detail.ClientHostname_str || "—")],
-              ["protocol", String(detail.UnderlayProtocol_str || "—")],
-              ["cipher", String(detail.CipherName_str || "plain")],
-              ["UDP accel", detail.IsUsingUdpAcceleration_bool ? "in use" : detail.IsUdpAccelerationEnabled_bool ? "enabled" : "off"],
-              ["TCP connections", `${detail.NumTcpConnections_u32 ?? 0} / ${detail.MaxTcpConnections_u32 ?? 0}`],
-              ["half connection", detail.HalfConnection_bool ? "yes" : "no"],
-              ["compress", detail.UseCompress_bool ? "yes" : "no"],
-              ["started", formatDate(detail.StartTime_dt as string)],
-              ["client", `${detail.ClientProductName_str || "—"} ${detail.ClientProductVer_u32 ?? ""}`],
-              ["client OS", String(detail.ClientOsName_str || "—")],
-              ["sent", formatBytes(Number(detail.TotalSendSizeReal_u64 ?? detail.TotalSendSize_u64))],
-              ["received", formatBytes(Number(detail.TotalRecvSizeReal_u64 ?? detail.TotalRecvSize_u64))],
+              [t("user"), String(detail.Username_str || "—")],
+              [t("client IP"), String(detail.Client_Ip_Address_ip || "—")],
+              [t("client host"), String(detail.SessionStatus_ClientHostName_str || detail.ClientHostname_str || "—")],
+              [t("protocol"), String(detail.UnderlayProtocol_str || "—")],
+              [t("cipher"), String(detail.CipherName_str || "plain")],
+              [t("UDP accel"), detail.IsUsingUdpAcceleration_bool ? t("in use") : detail.IsUdpAccelerationEnabled_bool ? t("enabled") : t("off")],
+              [t("TCP connections"), `${detail.NumTcpConnections_u32 ?? 0} / ${detail.MaxTcpConnections_u32 ?? 0}`],
+              [t("half connection"), detail.HalfConnection_bool ? t("yes") : t("no")],
+              [t("compress"), detail.UseCompress_bool ? t("yes") : t("no")],
+              [t("started"), formatDate(detail.StartTime_dt as string)],
+              [t("client"), `${detail.ClientProductName_str || "—"} ${detail.ClientProductVer_u32 ?? ""}`],
+              [t("client OS"), String(detail.ClientOsName_str || "—")],
+              [t("sent"), formatBytes(Number(detail.TotalSendSizeReal_u64 ?? detail.TotalSendSize_u64))],
+              [t("received"), formatBytes(Number(detail.TotalRecvSizeReal_u64 ?? detail.TotalRecvSize_u64))],
             ]}
           />
         </div>
