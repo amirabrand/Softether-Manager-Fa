@@ -85,6 +85,14 @@ def _loop() -> None:
                 quota.tick()
             except Exception:  # noqa: BLE001 - a ceiling failing to bite must not kill the thread
                 logger.exception("quota enforcement failed")
+            # The online ceilings ride the same clock: one pass, same guard
+            # rails, and it costs nothing at all while no plan sets a limit.
+            try:
+                from . import online
+
+                online.tick()
+            except Exception:  # noqa: BLE001 - the tick retries, the loop lives
+                logger.exception("online-limit enforcement failed")
             try:
                 seconds = max(10, int(get_setting("quota_interval_seconds")))
             except Exception:  # noqa: BLE001

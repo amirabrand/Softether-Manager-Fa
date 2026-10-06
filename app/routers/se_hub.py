@@ -210,6 +210,10 @@ def delete_user(hub: str, name: str, user: dict = CurrentUser) -> Wire:
 
 class RenewIn(BaseModel):
     months: int = Field(ge=1, le=120)
+    # A renewal is a fresh period: when the account carries a volume ceiling
+    # from its sale, the meter restarts with it -- the customer paid for a
+    # new allowance, not for the bytes they already burned.
+    reset_volume: bool = Field(default=False)
 
 
 @router.post("/{hub}/users/{name}/renew")
@@ -249,6 +253,19 @@ def renew_user(hub: str, name: str, body: RenewIn, user: dict = CurrentUser) -> 
     }
     body_wire["ExpireTime_dt"] = new_expire.isoformat()
     rpc("SetUser", {**body_wire, "HubName_str": hub, "Name_str": name})
+
+    if body.reset_volume:
+        # Zero the account's volume meter when it has one. An account with
+        # no traffic record gets one -- a baseline and no ceiling -- which
+        # changes nothing the operator would notice. A block left by a full
+        # meter lifts here too: the renewal released it.
+        try:
+            from ..services.quota import reset_transfer
+
+            reset_transfer("user", hub, name)
+        except Exception:  # noqa: BLE001 - renewal must not fail on the meter
+            pass
+
     record(user, "user.renewed", "vpn_user", name,
            f"hub {hub} +{body.months}m -> {new_expire.date().isoformat()}")
     return {

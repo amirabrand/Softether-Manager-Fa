@@ -1253,9 +1253,21 @@
 }
 .pricerow {
   display: grid;
-  grid-template-columns: 1fr 130px;
+  grid-template-columns: 1fr 120px 96px 72px;
   align-items: center;
-  gap: var(--s3);
+  gap: var(--s2);
+}
+.pricerow--head {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--muted);
+  padding-inline-end: var(--s2);
+  text-align: start;
+}
+/* The sale form and the plan editor need the number inputs compact; RTL
+   grids flow right-to-left, so the label column stays first visually. */
+.pricelist .input {
+  padding-inline: var(--s2);
 }
 .pricerow__label {
   display: flex;
@@ -1301,6 +1313,45 @@
 }
 .checkline input {
   margin-top: 2px;
+}
+
+/* ── Usage against a sold plan's limits ───────────────────────── */
+.volcell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+}
+.volcell small {
+  color: var(--muted);
+  font-size: var(--t-micro);
+  direction: ltr;
+  text-align: start;
+}
+.volbar {
+  position: relative;
+  height: 6px;
+  min-width: 90px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.18);
+  overflow: hidden;
+}
+.volbar__fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: 999px;
+  background: var(--accent, #6366f1);
+  transition: width 0.3s ease;
+}
+.volbar--over .volbar__fill {
+  background: var(--bad, #ef4444);
+}
+@media (max-width: 720px) {
+  .pricerow {
+    grid-template-columns: 1fr 100px 84px 64px;
+    gap: var(--s1);
+  }
 }
 
 /* ── One-click renewal menu ──────────────────────────────────────────────── */

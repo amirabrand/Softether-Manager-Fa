@@ -163,6 +163,12 @@ TABLES: list[str] = [
     # One row per subscription sold through the panel: what was sold (a
     # duration group and its months), for how much, and to whom. The VPN
     # user itself lives on SoftEther; this is the panel's own ledger.
+    # "VolumeBytes" and "MaxOnline" snapshot the plan's limits at sale time:
+    # how much traffic the subscription may move (0 = unlimited) and how many
+    # sessions may be online at once (0 = unlimited). The volume figure is
+    # enforced through the TrafficQuota machinery; the online figure through
+    # the online-limit tick (see app/services/online.py). Renewals write a
+    # fresh row, so the ledger keeps the limits each period was sold with.
     """
     CREATE TABLE IF NOT EXISTS "Sale" (
         "SaleID"      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -172,6 +178,8 @@ TABLES: list[str] = [
         "Months"       INTEGER NOT NULL DEFAULT 0,
         "Price"        REAL    NOT NULL DEFAULT 0,
         "Currency"     TEXT    NOT NULL DEFAULT '',
+        "VolumeBytes"  INTEGER NOT NULL DEFAULT 0,
+        "MaxOnline"    INTEGER NOT NULL DEFAULT 0,
         "BuyerName"    TEXT    NOT NULL DEFAULT '',
         "Note"         TEXT    NOT NULL DEFAULT '',
         "CreatedDate"  TEXT    NOT NULL,
@@ -321,6 +329,17 @@ def migrate(conn) -> None:
                     conn.execute(f'ALTER TABLE "TrafficQuota" DROP COLUMN "{column}"')
                 except Exception:  # noqa: BLE001 - SQLite before 3.35 cannot drop a
                     pass          # column; it defaults to 0 and nothing reads it.
+
+    # 1e. Sales gained the plan's limits as first-class columns: the volume
+    #     ceiling (bytes, 0 = unlimited) and the concurrent-session ceiling
+    #     (0 = unlimited). Existing rows predate the plans and get zeroes,
+    #     which reads back as "no limit" -- exactly what they were sold with.
+    if table_exists("Sale"):
+        for column in ("VolumeBytes", "MaxOnline"):
+            if not has_column("Sale", column):
+                conn.execute(
+                    f'ALTER TABLE "Sale" ADD COLUMN "{column}" INTEGER NOT NULL DEFAULT 0'
+                )
 
     # 2. The sample tables are disposable time series; the old shape carried a
     #    ServerID column. Recreate rather than alter.

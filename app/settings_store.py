@@ -123,13 +123,18 @@ def _seed(key: str) -> Any:
         "acme_email": "",
         "acme_staging": False,
         "domain_only": False,
+        # The sales plans: per duration group, what the group costs and what
+        # it includes -- a traffic volume in GB (0 = unlimited) and how many
+        # sessions may be online at once (0 = unlimited). Older installs may
+        # still carry the earlier price-only shape; the settings router
+        # normalizes both into this one, so the Sales page can rely on it.
         "sale_pricing": {
-            "1month": 150000,
-            "2months": 280000,
-            "3months": 400000,
-            "6months": 750000,
-            "9months": 1050000,
-            "1year": 1300000,
+            "1month": {"price": 150000, "volume_gb": 50, "max_online": 2},
+            "2months": {"price": 280000, "volume_gb": 100, "max_online": 2},
+            "3months": {"price": 400000, "volume_gb": 150, "max_online": 3},
+            "6months": {"price": 750000, "volume_gb": 300, "max_online": 3},
+            "9months": {"price": 1050000, "volume_gb": 450, "max_online": 4},
+            "1year": {"price": 1300000, "volume_gb": 600, "max_online": 5},
         },
         "sale_currency": "تومان",
     }[key]

@@ -425,11 +425,13 @@ export const api = {
   // -- subscription sales ---------------------------------------------------------------
   sell: (hub: string, body: Wire) => request("POST", `${hubPath(hub)}/sales`, body),
   sales: (limit = 100) => request("GET", `/sales?limit=${limit}`),
-  renew: (hub: string, name: string, months: number) =>
+  // A renewal is a fresh period: the volume meter the plan sold restarts
+  // with it (reset_volume), so the customer gets the allowance they paid for.
+  renew: (hub: string, name: string, months: number, resetVolume = true) =>
     request<{ HubName_str: string; Name_str: string; Months_u32: number; ExpireTime_dt: string }>(
       "POST",
       `${hubPath(hub)}/users/${encodeURIComponent(name)}/renew`,
-      { months },
+      { months, reset_volume: resetVolume },
     ),
   expirations: (days = 30) =>
     request<{

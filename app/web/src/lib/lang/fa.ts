@@ -1312,8 +1312,24 @@ export const fa: Record<string, string> = {
   "{days} days left": "{days} روز باقی مانده",
   "{name} — expires {date}": "{name} — تا {date}",
 
+  /* ── محدودیت حجم و نفرات آنلاین در فروش اشتراک ─────────────────── */
+  "What each plan includes: the price, the traffic volume and the concurrent online count.": "هر پلن چه دارد: قیمت، حجم ترافیک و سقف نفرات آنلاین همزمان.",
+  "Volume (GB)": "حجم (GB)",
+  "Volume limit (GB)": "محدودیت حجم (GB)",
+  "Max online users": "حداکثر نفرات آنلاین",
+  "0 = unlimited. The account is cut off when the volume runs out.": "۰ = نامحدود. با تمام‌شدن حجم، حساب قطع می‌شود.",
+  "0 = unlimited. Extra sessions are dropped when the count is passed.": "۰ = نامحدود. با گذشتن از سقف، نشست‌های اضافه قطع می‌شوند.",
+  "Volume used up": "حجم تمام شد",
+  "Over the online limit": "بیش از سقف آنلاین",
+  "Blocked": "قطع شده",
+  "OK": "سالم",
+  "Reset usage": "صفر کردن مصرف",
+  "Usage reset.": "مصرف صفر شد.",
+  "Volume": "حجم",
+  "Online": "آنلاین",
+
   /* ── کلیدهای پویا (از داده‌های se.ts، وضعیت‌ها و مقادیر پیش‌فرض) ─────── */
-  "unlimited": "بی‌نهایت",
+  "unlimited": "نامحدود",
   "server default": "پیش‌فرض سرور",
   "any": "هر",
   "ICMPv4": "ICMPv4",

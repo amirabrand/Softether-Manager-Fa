@@ -108,10 +108,12 @@ class SettingsIn(BaseModel):
     ui_list_seconds: Optional[int] = Field(default=None, ge=1, le=3600)
     update_check_enabled: Optional[bool] = None
     update_check_interval_hours: Optional[int] = Field(default=None, ge=1, le=168)
-    # Subscription sales: per-group prices (edited on the Sales page) and the
-    # currency string shown next to them. The prices map is validated here so
-    # a malformed PUT cannot smuggle junk into the ledger's arithmetic.
-    sale_pricing: Optional[dict[str, float]] = None
+    # Subscription sales: per-group plans (edited on the Sales page) and the
+    # currency string shown next to them. A plan is the group's price plus
+    # what the price buys -- a traffic volume in GB and a concurrent-session
+    # ceiling -- but installs from before the plans existed store bare
+    # numbers, so both shapes arrive here and one normalized shape leaves.
+    sale_pricing: Optional[dict[str, Any]] = None
     sale_currency: Optional[str] = Field(default=None, max_length=24)
 
 
@@ -133,17 +135,35 @@ def put_panel_settings(body: SettingsIn, user: dict = CurrentUser) -> dict[str, 
                     "tilde and hyphen.",
                 )
         if key == "sale_pricing" and value is not None:
+
+            def _num(raw: Any, what: str, gname: str, limit: float, *, integral: bool = False) -> float:
+                try:
+                    n = float(raw)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=422, detail=f"Bad {what} for {gname}.") from None
+                if n < 0 or n != n or n > limit:
+                    raise HTTPException(status_code=422, detail=f"Bad {what} for {gname}.")
+                return round(n) if integral else n
+
             clean = {}
-            for gname, price in dict(value).items():
+            for gname, spec in dict(value).items():
                 if not isinstance(gname, str) or len(gname) > 64:
                     raise HTTPException(status_code=422, detail="Bad sale price key.")
-                try:
-                    p = float(price)
-                except (TypeError, ValueError):
-                    raise HTTPException(status_code=422, detail=f"Bad price for {gname}.")
-                if p < 0 or p != p:  # negative or NaN
-                    raise HTTPException(status_code=422, detail=f"Bad price for {gname}.")
-                clean[gname] = p
+                # The old shape is a bare price; the new one is the plan.
+                if isinstance(spec, dict):
+                    clean[gname] = {
+                        "price": _num(spec.get("price", 0), "price", gname, 1e15),
+                        "volume_gb": _num(spec.get("volume_gb", 0), "volume", gname, 1_000_000),
+                        "max_online": int(
+                            _num(spec.get("max_online", 0), "online count", gname, 10_000, integral=True)
+                        ),
+                    }
+                else:
+                    clean[gname] = {
+                        "price": _num(spec, "price", gname, 1e15),
+                        "volume_gb": 0.0,
+                        "max_online": 0,
+                    }
             value = clean
         set_setting(key, value)
         changed.append(key)
