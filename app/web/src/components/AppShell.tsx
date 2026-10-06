@@ -133,8 +133,8 @@ function Side({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => voi
         <Link to="/" className="side__brand" aria-label={t("Dashboard")}>
           <BrandMark size={38} />
           <span className="side__label">
-            <span className="side__word">SoftEther</span>
-            <span className="side__sub">Manager</span>
+            <span className="side__word">AMIRITPANEL</span>
+            <span className="side__sub">پنل مدیریت</span>
           </span>
         </Link>
         <button

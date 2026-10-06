@@ -245,6 +245,8 @@ def result_for(method: str, params: dict) -> dict:
             return {
                 "ServerVersion_int": 4,
                 "ServerBuildInt": 9807,
+                "ServerProductName_str": "AMIRITPANEL VPN Server",
+                "ServerVersionString_str": "AMIRITPANEL VPN Server 5.02 (Build 9807)",
                 "ServerHostName_str": "mock-server",
                 "ServerType_u32": 0,
                 "IsInVm_bool": False,

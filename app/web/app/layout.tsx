@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "../src/styles.css";
 
 export const metadata: Metadata = {
-  title: "SoftEther Manager",
-  description: "Management panel for SoftEther VPN servers.",
+  title: "AMIRITPANEL",
+  description: "AMIRITPANEL — self-hosted VPN management and shop panel.",
 };
 
 export const viewport: Viewport = {
@@ -64,7 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="SoftEther" />
+        <meta name="apple-mobile-web-app-title" content="AMIRITPANEL" />
         {/* Relative hrefs for the same reason as the fonts: the panel may be
             mounted under a secret prefix, and "./" resolves wherever it is. */}
         <link rel="icon" type="image/png" sizes="256x256" href="./favicon.png" />

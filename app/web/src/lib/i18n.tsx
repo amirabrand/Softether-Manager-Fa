@@ -38,6 +38,14 @@ function interpolate(template: string, params?: InterpolationParams): string {
   );
 }
 
+/**
+ * Display rebrand: the panel ships as AMIRITPANEL, so the upstream product
+ * name never shows, whichever language a string lands in. Case-sensitive on
+ * the brand casing -- the real DDNS suffix "softether.net" (lowercase) in a
+ * few keys must survive untouched.
+ */
+const rebrand = (s: string) => s.replace(/SoftEther/g, "AMIRITPANEL");
+
 interface I18nApi {
   lang: Lang;
   setLang: (l: Lang) => void;
@@ -77,10 +85,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setLang: setLangState,
       isRTL: lang === "fa",
       t: (key, params) => {
-        if (lang === "en") return interpolate(key, params);
+        if (lang === "en") return rebrand(interpolate(key, params));
         const table = fa as Record<string, string>;
         const template = Object.prototype.hasOwnProperty.call(table, key) ? table[key] : key;
-        return interpolate(template, params);
+        return rebrand(interpolate(template, params));
       },
     }),
     [lang],

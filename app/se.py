@@ -74,7 +74,7 @@ def get_client() -> softether.SoftEtherClient:
             raise HTTPException(
                 status_code=409,
                 detail={
-                    "message": "The panel is not connected to SoftEther yet. Set the management "
+                    "message": "The panel is not connected to the AMIRITPANEL server yet. Set the management "
                     "port and administrator password first.",
                     "se_error": "NotConfigured",
                     "se_code": None,
@@ -122,16 +122,16 @@ def to_http_error(exc: softether.SoftEtherError) -> HTTPException:
     if isinstance(exc, softether.ValidationError):
         return HTTPException(status_code=422, detail=str(exc))
     if isinstance(exc, softether.AuthenticationError):
-        return _http(502, "The SoftEther server rejected the stored administrator password.", exc)
+        return _http(502, "The AMIRITPANEL server rejected the stored administrator password.", exc)
     if isinstance(exc, softether.ApiDisabledError):
         return _http(
             502,
-            "The SoftEther server answered 404 for /api/: its JSON-RPC interface is disabled "
+            "The AMIRITPANEL server answered 404 for /api/: its JSON-RPC interface is disabled "
             "or the server predates it (4.27 is the first build that has it).",
             exc,
         )
     if isinstance(exc, softether.TransportError):
-        return _http(502, f"The SoftEther server could not be reached: {exc}", exc)
+        return _http(502, f"The AMIRITPANEL server could not be reached: {exc}", exc)
     if isinstance(exc, softether.NotFoundError):
         return _http(404, str(exc), exc)
     if isinstance(exc, softether.AlreadyExistsError):

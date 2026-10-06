@@ -310,7 +310,7 @@ def _document(
     lines = [
         "# VPN Client VPN Connection Setting File",
         "# ",
-        "# This file is exported from the SoftEther Manager panel.",
+        "# This file is exported from the AMIRITPANEL panel.",
         "# The contents of this file can be edited using a text editor.",
         "# ",
         "# When this file is imported to the Client Connection Manager it can be used immediately.",

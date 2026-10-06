@@ -24,6 +24,13 @@ import {
 import { OnlinePill } from "../ui/Status";
 
 /**
+ * The VPN server binary still reports its own upstream product name in its
+ * version string; the UI shows the panel brand instead, wherever that
+ * string is surfaced (hero card, greeting line).
+ */
+const rebrand = (s: string | undefined) => (s ?? "").replace(/softether/gi, "AMIRITPANEL");
+
+/**
  * The home screen, laid out as a deck: a greeting, a row of KPIs, the hubs
  * as a feed, and — on the light hero card — the server itself with its
  * uptime and the two actions an operator reaches for first.
@@ -85,7 +92,7 @@ export function Dashboard() {
           <h1 className="hello__t">{greeting}{user ? `, ${user}` : ""}</h1>
           <div className="hello__s">
             {probe?.online ? (
-              <>{t("Your VPN server is healthy.")} <span className="mono">{probe.hostname} · {probe.version}</span></>
+              <>{t("Your VPN server is healthy.")} <span className="mono">{probe.hostname} · {rebrand(probe.version)}</span></>
             ) : health === "offline" ? (
               t("The VPN server is not answering.")
             ) : (
@@ -209,7 +216,7 @@ export function Dashboard() {
                 {probe?.hostname ?? "—"}
               </div>
               <div className="hero__v">{uptimeSeconds ? formatDuration(uptimeSeconds) : "—"}</div>
-              <div className="hero__s">{t("VPN uptime")} · {probe?.version ?? t("version unknown")}</div>
+              <div className="hero__s">{t("VPN uptime")} · {probe?.version ? rebrand(probe.version) : t("version unknown")}</div>
               <div className="hero__actions">
                 <button className="btn btn--sm" onClick={() => setCreatingHub(true)}>
                   <IconPlus size={14} /> {t("New hub")}

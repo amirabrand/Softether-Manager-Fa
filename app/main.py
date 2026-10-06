@@ -63,7 +63,7 @@ async def _lifespan(_inner: FastAPI):
 
 def _build_core() -> FastAPI:
     app = FastAPI(
-        title="SoftEther Manager",
+        title="AMIRITPANEL",
         version=get_version(),
         docs_url=None,
         redoc_url=None,
