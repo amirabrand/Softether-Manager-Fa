@@ -9,7 +9,7 @@ import { useT } from "../lib/i18n";
 import { useToast } from "../lib/toast";
 import { useServer } from "../lib/server";
 import { formatBytes, formatDate } from "../lib/util";
-import { IconCopy, IconPlus, IconSync, IconTag } from "../ui/Icon";
+import { IconCopy, IconPlus, IconSync, IconTag, IconTrash } from "../ui/Icon";
 
 /**
  * What one duration group sells: the price, and what the price buys -- a
@@ -30,6 +30,29 @@ type SaleStatus = {
   blocked: boolean;
   over_volume: boolean;
   over_online: boolean;
+};
+
+/** One discount coupon in the marketing book. */
+type Coupon = {
+  CouponID: number;
+  Code: string;
+  PercentOff: number;
+  MaxUses: number;
+  UsedCount: number;
+  ExpiresDate: string;
+  IsActive: number;
+};
+
+/** The till at a glance: net totals, a zero-filled daily curve, popular plans. */
+type SaleStats = {
+  Count_u32: number;
+  Gross_f64: number;
+  Discount_f64: number;
+  Net_f64: number;
+  Currency: string;
+  Days_u32: number;
+  ByDay: { date: string; count: number; net: number }[];
+  ByPlan: { group: string; count: number; net: number }[];
 };
 
 const asPlan = (v: unknown): Plan => {
@@ -81,6 +104,7 @@ export function Sales() {
   const [maxOnline, setMaxOnline] = useState("");
   const [note, setNote] = useState("");
   const [extend, setExtend] = useState(false);
+  const [coupon, setCoupon] = useState("");
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<null | {
     name: string;
@@ -88,6 +112,7 @@ export function Sales() {
     expire: string;
     volume: number;
     online: number;
+    charged: number;
   }>(null);
 
   // ---- ledger ---------------------------------------------------------------
@@ -101,6 +126,24 @@ export function Sales() {
     const out = await api.sales(200).catch(() => null);
     if (out)
       setLedger(out as { SaleList: Wire[]; PriceSum_f64: number; Status: Record<string, SaleStatus> });
+  }, []);
+
+  // ---- coupons + analytics --------------------------------------------------
+  const [coupons, setCoupons] = useState<Coupon[] | null>(null);
+  const [stats, setStats] = useState<SaleStats | null>(null);
+  const [cCode, setCCode] = useState("");
+  const [cPercent, setCPercent] = useState("");
+  const [cMax, setCMax] = useState("");
+  const [cExp, setCExp] = useState("");
+  const [cBusy, setCBusy] = useState(false);
+
+  const loadCoupons = useCallback(async () => {
+    const out = await api.coupons().catch(() => null);
+    if (out) setCoupons((out.CouponList ?? []) as Coupon[]);
+  }, []);
+  const loadStats = useCallback(async () => {
+    const out = await api.salesStats(30).catch(() => null);
+    if (out) setStats(out as SaleStats);
   }, []);
 
   const applyPlans = useCallback((raw: unknown) => {
@@ -120,7 +163,9 @@ export function Sales() {
       }
     })();
     void loadLedger();
-  }, [loadLedger, applyPlans]);
+    void loadCoupons();
+    void loadStats();
+  }, [loadLedger, loadCoupons, loadStats, applyPlans]);
 
   useEffect(() => {
     if (!hub && hubs && hubs.length > 0) setHub(String(hubs[0].HubName_str));
@@ -201,6 +246,7 @@ export function Sales() {
         buyer,
         note,
         extend_if_exists: extend,
+        coupon_code: couponHit ? couponHit.Code : "",
       });
       setReceipt({
         name,
@@ -208,17 +254,77 @@ export function Sales() {
         expire: out.user.ExpireTime_dt,
         volume: Number(volume) || 0,
         online: Number(maxOnline) || 0,
+        charged: (Number(price) || 0) - discountVal,
       });
       push("ok", t("Sold {months} months to {name}.", { months: presetMonths, name }));
       setBuyer("");
       setUsername("");
       setPassword("");
       setNote("");
+      setCoupon("");
       void loadLedger();
+      void loadCoupons();
+      void loadStats();
     } catch (e) {
       setError(e instanceof Error ? t(e.message) : String(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  // ---- the coupon the operator typed into the sale form ---------------------
+  // Live-checked against the loaded book, so the summary can promise the
+  // final price before the backend ever sees the code.
+  const couponHit = useMemo(() => {
+    const c = coupon.trim().toUpperCase();
+    if (!c) return null;
+    return (coupons ?? []).find((x) => x.Code === c && x.IsActive) ?? null;
+  }, [coupon, coupons]);
+  const discountVal =
+    couponHit && Number(price) > 0
+      ? Math.min(Math.round((Number(price) * couponHit.PercentOff) / 100), Number(price))
+      : 0;
+
+  const createCoupon = async () => {
+    const code = cCode.trim().toUpperCase();
+    if (code.length < 3 || !(Number(cPercent) >= 1)) return;
+    setCBusy(true);
+    try {
+      await api.couponCreate({
+        code,
+        percent_off: Number(cPercent),
+        max_uses: Number(cMax) || 0,
+        expires: cExp,
+      });
+      push("ok", t("Coupon created."));
+      setCCode("");
+      setCPercent("");
+      setCMax("");
+      setCExp("");
+      void loadCoupons();
+    } catch (e) {
+      push("err", e instanceof Error ? t(e.message) : String(e));
+    } finally {
+      setCBusy(false);
+    }
+  };
+
+  const toggleCoupon = async (c: Coupon) => {
+    try {
+      await api.couponUpdate(c.Code, { is_active: !c.IsActive });
+      void loadCoupons();
+    } catch (e) {
+      push("err", e instanceof Error ? t(e.message) : String(e));
+    }
+  };
+
+  const removeCoupon = async (c: Coupon) => {
+    try {
+      await api.couponDelete(c.Code);
+      push("ok", t("Coupon deleted."));
+      void loadCoupons();
+    } catch (e) {
+      push("err", e instanceof Error ? t(e.message) : String(e));
     }
   };
 
@@ -274,6 +380,60 @@ export function Sales() {
         actions={<IconTag size={22} />}
       />
 
+      {/* -------- the till at a glance -------- */}
+      {stats && stats.Count_u32 > 0 && (
+        <div className="card pad" style={{ marginBottom: "var(--s4)" }}>
+          <SectionTitle>{t("Sales at a glance")}</SectionTitle>
+          <div className="statgrid">
+            <div className="stat">
+              <small>{t("Sales count")}</small>
+              <b>{fmtNum(stats.Count_u32)}</b>
+            </div>
+            <div className="stat">
+              <small>{t("Net charged")}</small>
+              <b>
+                {fmtNum(Math.round(stats.Net_f64))}
+                {stats.Currency && <i className="tsub"> {stats.Currency}</i>}
+              </b>
+            </div>
+            <div className="stat">
+              <small>{t("Discounts given")}</small>
+              <b>
+                {fmtNum(Math.round(stats.Discount_f64))}
+                {stats.Currency && <i className="tsub"> {stats.Currency}</i>}
+              </b>
+            </div>
+            <div className="stat stat--wide">
+              <small>
+                {t("Sales by day")} · {t("Last {days} days", { days: fmtNum(stats.Days_u32) })}
+              </small>
+              <div className="sparkbar">
+                {stats.ByDay.map((d) => {
+                  const max = Math.max(...stats.ByDay.map((x) => x.count), 1);
+                  return (
+                    <i
+                      key={d.date}
+                      className={d.count ? "" : "sparkzero"}
+                      title={`${d.date} — ${fmtNum(d.count)}`}
+                      style={{ height: d.count ? `${Math.max(8, (d.count / max) * 100)}%` : "2px" }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          {stats.ByPlan.length > 0 && (
+            <div className="plan-chips">
+              {stats.ByPlan.map((p) => (
+                <span key={p.group} className="chip">
+                  {p.group} × {fmtNum(p.count)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="sales-grid">
         {/* -------- the sale form -------- */}
         <div className="card pad">
@@ -289,6 +449,12 @@ export function Sales() {
                   {" · "}
                   {t("Online")}:{" "}
                   <b>{receipt.online > 0 ? fmtNum(receipt.online) : t("unlimited")}</b>
+                  {receipt.charged > 0 && (
+                    <>
+                      {" · "}
+                      {t("Charged")}: <b>{fmtNum(receipt.charged)} {currency}</b>
+                    </>
+                  )}
                 </div>
               </div>
               {receipt.password && (
@@ -406,6 +572,27 @@ export function Sales() {
           <Field label={t("Note")}>
             <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
+          <Field
+            label={t("Coupon code")}
+            hint={t("Optional. The code takes its percent off the price.")}
+          >
+            <div style={{ display: "flex", gap: "var(--s2)", alignItems: "center" }}>
+              <input
+                className="input mono"
+                value={coupon}
+                autoCapitalize="characters"
+                spellCheck={false}
+                onChange={(e) => setCoupon(e.target.value.toUpperCase())}
+                placeholder="NOWRUZ20"
+              />
+              {coupon.trim() !== "" &&
+                (couponHit ? (
+                  <span className="pill pill--ok">{t("-{n}%", { n: fmtNum(couponHit.PercentOff) })}</span>
+                ) : (
+                  <span className="pill pill--idle">{t("not in the book")}</span>
+                ))}
+            </div>
+          </Field>
           <label className="checkline" style={{ marginTop: "var(--s2)" }}>
             <input type="checkbox" checked={extend} onChange={(e) => setExtend(e.target.checked)} />
             <span>{t("If the username already exists, add the months to it instead of refusing.")}</span>
@@ -414,7 +601,14 @@ export function Sales() {
             <span>{t("Expiry will be")}</span>
             <b>{formatDate(expiryFromMonths(presetMonths).toISOString())}</b>
             <span>·</span>
-            <b>{price ? `${fmtNum(Number(price))} ${currency}` : t("no charge")}</b>
+            {discountVal > 0 ? (
+              <span>
+                <s className="tsub">{fmtNum(Number(price))}</s>{" "}
+                <b>{fmtNum(Number(price) - discountVal)} {currency}</b>
+              </span>
+            ) : (
+              <b>{price ? `${fmtNum(Number(price))} ${currency}` : t("no charge")}</b>
+            )}
             <span>·</span>
             <span>
               {t("Volume")}: <b>{Number(volume) > 0 ? `${fmtNum(Number(volume))} GB` : t("unlimited")}</b>
@@ -495,6 +689,115 @@ export function Sales() {
         </div>
       </div>
 
+      {/* -------- the coupon book -------- */}
+      <div className="card pad" style={{ marginTop: "var(--s4)" }}>
+        <SectionTitle count={coupons?.length}>{t("Discount coupons")}</SectionTitle>
+        <p className="tsub" style={{ marginTop: -4 }}>
+          {t("A code takes its percent off any sale; cap how often it may fire and until when.")}
+        </p>
+        <div className="coupon-new">
+          <input
+            className="input mono"
+            value={cCode}
+            autoCapitalize="characters"
+            spellCheck={false}
+            placeholder={t("Coupon code")}
+            onChange={(e) => setCCode(e.target.value.toUpperCase())}
+          />
+          <input
+            className="input mono"
+            type="number"
+            min={1}
+            max={100}
+            placeholder={t("Percent off")}
+            title={t("Percent off")}
+            value={cPercent}
+            onChange={(e) => setCPercent(e.target.value)}
+          />
+          <input
+            className="input mono"
+            type="number"
+            min={0}
+            placeholder={t("Max uses")}
+            title={t("Max uses — 0 = unlimited.")}
+            value={cMax}
+            onChange={(e) => setCMax(e.target.value)}
+          />
+          <input
+            className="input mono"
+            type="date"
+            title={t("Expires (empty = never)")}
+            value={cExp}
+            onChange={(e) => setCExp(e.target.value)}
+          />
+          <button
+            className="btn btn--primary"
+            disabled={cBusy || cCode.trim().length < 3 || !(Number(cPercent) >= 1)}
+            onClick={createCoupon}
+          >
+            {cBusy && <span className="spin" style={{ width: 13, height: 13 }} />}
+            <IconPlus size={15} /> {t("Add coupon")}
+          </button>
+        </div>
+        {coupons === null ? null : coupons.length === 0 ? (
+          <Empty title={t("No coupons yet.")}>
+            {t("Hand a code to a customer and the discount applies at the till.")}
+          </Empty>
+        ) : (
+          <div className="tscroll">
+            <table className="dtable">
+              <thead>
+                <tr>
+                  <th>{t("Coupon code")}</th>
+                  <th>{t("Percent off")}</th>
+                  <th>{t("Used")}</th>
+                  <th>{t("Expires")}</th>
+                  <th>{t("Status")}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {coupons.map((c) => (
+                  <tr key={c.CouponID} style={{ opacity: c.IsActive ? 1 : 0.55 }}>
+                    <td className="tmono tname">{c.Code}</td>
+                    <td className="tmono">{t("-{n}%", { n: fmtNum(c.PercentOff) })}</td>
+                    <td className="tmono">
+                      {fmtNum(c.UsedCount)} / {c.MaxUses > 0 ? fmtNum(c.MaxUses) : "∞"}
+                    </td>
+                    <td className="tmono">{c.ExpiresDate || "—"}</td>
+                    <td>
+                      {c.IsActive ? (
+                        <span className="pill pill--ok">{t("Active")}</span>
+                      ) : (
+                        <span className="pill pill--idle">{t("Inactive")}</span>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: "var(--s1)", alignItems: "center" }}>
+                        <button
+                          className="btn btn--sm btn--ghost"
+                          onClick={() => void toggleCoupon(c)}
+                        >
+                          {c.IsActive ? t("Deactivate") : t("Activate")}
+                        </button>
+                        <button
+                          className="btn btn--sm btn--ghost"
+                          title={t("Delete")}
+                          aria-label={t("Delete")}
+                          onClick={() => void removeCoupon(c)}
+                        >
+                          <IconTrash size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* -------- the ledger -------- */}
       <div className="card" style={{ marginTop: "var(--s4)" }}>
         <SectionTitle count={ledger?.SaleList.length}>{t("Recent sales")}</SectionTitle>
@@ -514,6 +817,7 @@ export function Sales() {
                   <th>{t("Group")}</th>
                   <th>{t("Duration")}</th>
                   <th>{t("Price")}</th>
+                  <th>{t("Discount")}</th>
                   <th>{t("Volume")}</th>
                   <th>{t("Online")}</th>
                   <th>{t("Status")}</th>
@@ -535,6 +839,16 @@ export function Sales() {
                       </td>
                       <td className="tmono">
                         {fmtNum(Number(s.Price))} {String(s.Currency || "")}
+                      </td>
+                      <td className="tmono">
+                        {Number(s.Discount) > 0 ? (
+                          <span title={String(s.CouponCode || "")}>
+                            −{fmtNum(Number(s.Discount))}
+                            {s.CouponCode ? <small className="tsub"> {String(s.CouponCode)}</small> : null}
+                          </span>
+                        ) : (
+                          <span className="tsub">—</span>
+                        )}
                       </td>
                       <td>{volumeCell(st)}</td>
                       <td>{onlineCell(st)}</td>

@@ -425,6 +425,25 @@ export const api = {
   // -- subscription sales ---------------------------------------------------------------
   sell: (hub: string, body: Wire) => request("POST", `${hubPath(hub)}/sales`, body),
   sales: (limit = 100) => request("GET", `/sales?limit=${limit}`),
+  // Discount coupons: the marketing book the till draws from.
+  coupons: () => request("GET", `/coupons`),
+  couponCreate: (body: Wire) => request("POST", `/coupons`, body),
+  couponUpdate: (code: string, body: Wire) =>
+    request("PUT", `/coupons/${encodeURIComponent(code)}`, body),
+  couponDelete: (code: string) =>
+    request("DELETE", `/coupons/${encodeURIComponent(code)}`),
+  // Net-of-discount totals, a zero-filled daily curve and the popular plans.
+  salesStats: (days = 30) =>
+    request<{
+      Count_u32: number;
+      Gross_f64: number;
+      Discount_f64: number;
+      Net_f64: number;
+      Currency: string;
+      Days_u32: number;
+      ByDay: { date: string; count: number; net: number }[];
+      ByPlan: { group: string; count: number; net: number }[];
+    }>("GET", `/sales/stats?days=${days}`),
   // A renewal is a fresh period: the volume meter the plan sold restarts
   // with it (reset_volume), so the customer gets the allowance they paid for.
   renew: (hub: string, name: string, months: number, resetVolume = true) =>

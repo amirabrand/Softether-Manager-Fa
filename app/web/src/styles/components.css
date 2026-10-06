@@ -1409,3 +1409,80 @@
 .row--static {
   text-align: start;
 }
+
+/* ── Sales analytics: the till at a glance ─────────────────────────────── */
+.statgrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr);
+  gap: var(--s3);
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-ctl);
+  background: var(--card-grad, transparent);
+  border: 1px solid var(--glass-line);
+}
+.stat small {
+  color: var(--text-muted);
+  font-size: var(--t-micro);
+}
+.stat b {
+  font-size: var(--t-kpi);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.stat b i {
+  font-style: normal;
+  font-size: var(--t-small);
+}
+.stat--wide {
+  min-width: 0;
+}
+.sparkbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 52px;
+  margin-top: var(--s2);
+}
+.sparkbar i {
+  flex: 1 1 0;
+  min-width: 2px;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.85;
+}
+.sparkbar i.sparkzero {
+  background: var(--glass-line-hi);
+  opacity: 1;
+}
+.plan-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+/* ── Sales coupons: the create row ─────────────────────────────────────── */
+.coupon-new {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.4fr) 110px 110px 170px auto;
+  gap: var(--s2);
+  align-items: center;
+  margin: var(--s3) 0 var(--s4);
+}
+@media (max-width: 860px) {
+  .statgrid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .stat--wide {
+    grid-column: 1 / -1;
+  }
+  .coupon-new {
+    grid-template-columns: 1fr 1fr;
+  }
+}

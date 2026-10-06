@@ -180,11 +180,32 @@ TABLES: list[str] = [
         "Currency"     TEXT    NOT NULL DEFAULT '',
         "VolumeBytes"  INTEGER NOT NULL DEFAULT 0,
         "MaxOnline"    INTEGER NOT NULL DEFAULT 0,
+        "Discount"     REAL    NOT NULL DEFAULT 0,
+        "CouponCode"   TEXT    NOT NULL DEFAULT '',
         "BuyerName"    TEXT    NOT NULL DEFAULT '',
         "Note"         TEXT    NOT NULL DEFAULT '',
         "CreatedDate"  TEXT    NOT NULL,
         "CreatedBy"    TEXT    NOT NULL DEFAULT '',
         "IsDeleted"    INTEGER NOT NULL DEFAULT 0
+    )
+    """,
+    # --- discount coupons ------------------------------------------------------
+    # The marketing side of the till: a code the operator hands a customer,
+    # the percent it takes off a sale's list price, how many times it may be
+    # used (0 = unlimited) and until which date it lives ("" = forever).
+    # Applying a code bumps UsedCount and writes the taken amount onto the
+    # Sale row, so the ledger keeps both the list price and the actual cut.
+    """
+    CREATE TABLE IF NOT EXISTS "Coupon" (
+        "CouponID"    INTEGER PRIMARY KEY AUTOINCREMENT,
+        "Code"        TEXT    NOT NULL UNIQUE,
+        "PercentOff"  REAL    NOT NULL DEFAULT 0,
+        "MaxUses"     INTEGER NOT NULL DEFAULT 0,
+        "UsedCount"   INTEGER NOT NULL DEFAULT 0,
+        "ExpiresDate" TEXT    NOT NULL DEFAULT '',
+        "IsActive"    INTEGER NOT NULL DEFAULT 1,
+        "CreatedDate" TEXT    NOT NULL,
+        "CreatedBy"   TEXT    NOT NULL DEFAULT ''
     )
     """,
     # --- panel settings and audit ---------------------------------------------
@@ -340,6 +361,16 @@ def migrate(conn) -> None:
                 conn.execute(
                     f'ALTER TABLE "Sale" ADD COLUMN "{column}" INTEGER NOT NULL DEFAULT 0'
                 )
+
+    # 1f. Sales learned coupons: the amount that came off the list price at
+    #     sale time ("Discount") and the code that caused it ("CouponCode").
+    #     Older rows predate coupons and read back as full-price sales. The
+    #     coupon book itself is the new "Coupon" table in the main list.
+    if table_exists("Sale"):
+        if not has_column("Sale", "Discount"):
+            conn.execute('ALTER TABLE "Sale" ADD COLUMN "Discount" REAL NOT NULL DEFAULT 0')
+        if not has_column("Sale", "CouponCode"):
+            conn.execute("ALTER TABLE \"Sale\" ADD COLUMN \"CouponCode\" TEXT NOT NULL DEFAULT ''")
 
     # 2. The sample tables are disposable time series; the old shape carried a
     #    ServerID column. Recreate rather than alter.
