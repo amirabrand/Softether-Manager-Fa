@@ -490,6 +490,53 @@ export const api = {
     request("PUT", `/resellers/${uid}`, body),
   resellerTopup: (uid: number, body: Wire) =>
     request<{ Balance_f64: number }>("POST", `/resellers/${uid}/topup`, body),
+
+  // -- payments: card-to-card receipts + the Oxapay gateway -----------------------------
+  paymentsList: (status = "", kind = "") =>
+    request<{ PayReqList: Wire[]; Count_u32: number; Pending_u32: number }>(
+      "GET",
+      `/payments?limit=200${status ? `&status=${encodeURIComponent(status)}` : ""}` +
+        (kind ? `&kind=${encodeURIComponent(kind)}` : ""),
+    ),
+  paymentRecordC2C: (body: Wire) => request("POST", `/payments/card2card`, body),
+  paymentCreateOxa: (body: Wire) => request("POST", `/payments/oxapay`, body),
+  paymentApprove: (id: number) => request("POST", `/payments/${id}/approve`),
+  paymentReject: (id: number, note = "") =>
+    request("POST", `/payments/${id}/reject`, note ? { note } : {}),
+  paymentCheck: (id: number) =>
+    request<{ PayReq: Wire; GatewayStatus_utf: string; Decided_b: boolean }>(
+      "POST",
+      `/payments/${id}/check`,
+    ),
+  paymentsConfig: () =>
+    request<{
+      CardNumber_str: string;
+      CardHolder_str: string;
+      CardBank_str: string;
+      OxapayEnabled_b: boolean;
+      OxapayApiKey_mask: string;
+      OxapayCurrency_str: string;
+      OxapayRate_f64: number;
+      PublicBaseUrl_str: string;
+    }>("GET", `/payments/config`),
+  paymentsSaveConfig: (body: Wire) => request("PUT", `/payments/config`, body),
+  // -- payments on the reseller's desk (top-up requests) --------------------------------
+  resellerPayConfig: () =>
+    request<{
+      CardNumber_str: string;
+      CardHolder_str: string;
+      CardBank_str: string;
+      PayNote_utf: string;
+      OxapayEnabled_b: boolean;
+      OxapayCurrency_str: string;
+      Currency_str: string;
+    }>("GET", `/reseller/payconfig`),
+  resellerTopupC2C: (body: Wire) => request("POST", `/reseller/topup/card2card`, body),
+  resellerTopupOxa: (body: Wire) =>
+    request<{ PayReq: Wire }>("POST", `/reseller/topup/oxapay`, body),
+  resellerPayments: () =>
+    request<{ PayReqList: Wire[]; Pending_u32: number }>("GET", `/reseller/payments`),
+
   // A renewal is a fresh period: the volume meter the plan sold restarts
   // with it (reset_volume), so the customer gets the allowance they paid for.
   renew: (hub: string, name: string, months: number, resetVolume = true) =>

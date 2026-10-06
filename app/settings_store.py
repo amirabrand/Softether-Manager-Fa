@@ -98,6 +98,21 @@ DEFAULTS: dict[str, Any] = {
     "telegram_pay_note": None,
     "telegram_reminder_days": None,
     "telegram_enabled": None,
+    # --- payments ---------------------------------------------------------------
+    # The card-to-card facts buyers transfer against (shown in the bot and on
+    # the reseller desk), and the operator-side Oxapay crypto gateway: the
+    # merchant API key, the settlement currency and the rate (one gateway unit
+    # costs this many units of the shop's own currency -- amounts convert
+    # automatically), plus the panel's public URL the payment callback points
+    # back to (empty = webhook off; the operator's status check covers it).
+    "pay_card_number": None,
+    "pay_card_holder": None,
+    "pay_card_bank": None,
+    "oxapay_enabled": None,
+    "oxapay_api_key": None,
+    "oxapay_currency": None,
+    "oxapay_rate": None,
+    "public_base_url": None,
 }
 
 
@@ -152,6 +167,14 @@ def _seed(key: str) -> Any:
         "telegram_pay_note": "",
         "telegram_reminder_days": "7,3,1",
         "telegram_enabled": True,
+        "pay_card_number": "",
+        "pay_card_holder": "",
+        "pay_card_bank": "",
+        "oxapay_enabled": False,
+        "oxapay_api_key": "",
+        "oxapay_currency": "USDT",
+        "oxapay_rate": 0,
+        "public_base_url": "",
     }[key]
 
 

@@ -120,10 +120,13 @@ class SettingsIn(BaseModel):
 @router.get("/settings")
 def get_panel_settings(user: dict = CurrentUser) -> dict[str, Any]:
     out = all_settings()
-    # The bot token is a credential: the settings readout only shows its
-    # tail, so a shared screen or a leaked log never carries the whole thing.
+    # Credentials read back with their tail only: the bot token and the
+    # Oxapay merchant key, so a shared screen or a leaked log never carries
+    # the whole secret.
     tok = str(out.get("telegram_bot_token") or "")
     out["telegram_bot_token"] = ("\u2022\u2022\u2022\u2022" + tok[-6:]) if len(tok) > 12 else tok
+    oxa = str(out.get("oxapay_api_key") or "")
+    out["oxapay_api_key"] = ("\u2022\u2022\u2022\u2022" + oxa[-6:]) if len(oxa) > 12 else oxa
     return out
 
 

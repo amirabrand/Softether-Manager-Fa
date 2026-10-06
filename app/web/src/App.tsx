@@ -26,6 +26,7 @@ import { Expirations } from "./screens/Expirations";
 import { TelegramBot } from "./screens/TelegramBot";
 import { Reseller } from "./screens/Reseller";
 import { Resellers } from "./screens/Resellers";
+import { Payments } from "./screens/Payments";
 
 export default function App() {
   return (
@@ -61,6 +62,9 @@ export default function App() {
  *   /connections              TCP connections into the server
  *   /sales                    subscription sales: till + price list + ledger
  *   /expirations              subscriptions ending soonest first
+ *   /telegram                 the shop bot's control room
+ *   /resellers                reseller accounts + wallets
+ *   /payments                 card-to-card receipts + the Oxapay gateway
  *   /logs                     log browser
  *   /console                  raw RPC console
  *   /settings[/:section]      the panel itself
@@ -107,6 +111,8 @@ function Routed() {
     screen = <TelegramBot />;
   } else if (p[0] === "resellers") {
     screen = <Resellers />;
+  } else if (p[0] === "payments") {
+    screen = <Payments />;
   } else if (p[0] === "logs") {
     screen = <Logs />;
   } else if (p[0] === "console") {

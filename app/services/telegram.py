@@ -38,6 +38,7 @@ from typing import Any, Optional
 from ..db import get_db, utc_now
 from ..se import rpc
 from ..settings_store import get_setting
+from . import payments
 from . import quota
 from .selling import perform_sale, parse_expire, suggest_password
 
@@ -115,6 +116,40 @@ T_APPROVED_RENEW = (
 )
 T_REJECTED = "❌ سفارش #{oid} رد شد.{note}"
 T_NO_PENDING = "ℹ️ این سفارش قبلاً تصمیم‌گیری شده است."
+
+# -- payments: the two ways money arrives -----------------------------------
+T_PAY_MENU = (
+    "💳 روش پرداخت را انتخاب کنید:\n"
+    "💰 مبلغ سفارش: <b>{amount} {currency}</b>"
+)
+T_BTN_PAY_C2C = "💳 کارت به کارت"
+T_BTN_PAY_OXA = "🪙 پرداخت با آکساپی"
+T_BTN_PAY_OK = "✅ تأیید پرداخت"
+T_BTN_PAY_NO = "❌ رد پرداخت"
+T_BTN_PAY_OPEN = "🌐 باز کردن صفحه پرداخت"
+T_PAY_C2C_INFO = (
+    "💳 به کارت زیر واریز کنید:\n\n{card_text}\n\n"
+    "سپس کد پیگیری (شماره مرجع) تراکنش را بفرستید تا ادمین تأیید کند."
+)
+T_PAY_C2C_WAIT = (
+    "🧾 رسید شما ثبت شد و در انتظار تأیید ادمین است.\n"
+    "پس از تأیید، سفارش همین‌جا نهایی می‌شود."
+)
+T_PAY_REF_BAD = "❌ کد پیگیری را همین حالا بفرستید (متن ساده، حداکثر ۶۴ کاراکتر)."
+T_PAY_OXA_SENT = (
+    "🪙 فاکتور پرداخت ساخته شد ({gwa} {asset}).\n"
+    "با دکمهٔ زیر بپردازید؛ پس از تأیید شبکه، سفارش خودکار نهایی می‌شود."
+)
+T_PAY_OXA_FAIL = "❌ ساخت فاکتور پرداخت ناموفق بود. کارت به کارت را انتخاب کنید یا بعداً امتحان کنید."
+T_PAY_APPROVED = "✅ پرداخت #{pid} شما به مبلغ {amount} تأیید شد. 🎉"
+T_PAY_REJECTED = "❌ پرداخت #{pid} ({amount}) تأیید نشد.{note}"
+T_PAY_ADMIN = (
+    "💳 <b>پرداخت جدید</b> #{pid} — {kind}\n"
+    "👤 خریدار: {buyer}\n"
+    "💰 مبلغ: {amount} {currency}\n"
+    "🔖 پیگیری: {ref}{note}"
+)
+T_PAY_NO_ORDER = "ℹ️ این سفارش پیدا نشد."
 T_REMIND = (
     "⏳ یادآوری: اشتراک «{name}» {rel} تمام می‌شود ({date}).\n"
     "برای تمدید همین حالا بزنید 👇"
@@ -247,6 +282,48 @@ def _user_exists(hub: str, name: str) -> bool:
 
 def _host_display() -> str:
     return str(get_setting("se_host") or "") or "سرور"
+
+
+def _pay_kind_label(kind: str) -> str:
+    return "کارت به کارت" if kind == "card2card" else "آکساپی"
+
+
+# ── payments: the menu a fresh order ends with ────────────────────────────
+def _pay_menu_kb(oid: int) -> Optional[Wire]:
+    rows = [[(T_BTN_PAY_C2C, f"payc2c:{oid}")]]
+    if payments.oxapay_ready() and payments._rate() > 0:
+        rows.append([(T_BTN_PAY_OXA, f"payoxa:{oid}")])
+    return _inline(*rows)
+
+
+def _send_pay_menu(token: str, chat: int, order: Wire) -> None:
+    kb = _pay_menu_kb(int(order["TgOrderID"]))
+    if kb is None:
+        return
+    _send(token, chat, T_PAY_MENU.format(
+        amount=f"{float(order['Price'] or 0):g}", currency=order["Currency"]), kb)
+
+
+def _pay_oxa_for_order(token: str, chat: int, oid: int) -> None:
+    """Invoice the order's price on the gateway and hand the buyer the link."""
+    order = get_db().query_one('SELECT * FROM "TgOrder" WHERE "TgOrderID" = :i', {"i": oid})
+    if not order:
+        _send(token, chat, T_PAY_NO_ORDER)
+        return
+    try:
+        pay = payments.create_oxapay(
+            float(order["Price"] or 0), currency=order["Currency"],
+            buyer=str(order["TgName"] or ""), chat_id=chat, order_id=oid,
+            note=f"telegram order #{oid}", source="telegram",
+        )
+    except Exception as e:  # noqa: BLE001 -- the buyer picks another way
+        logger.warning("telegram: oxapay invoice for order #%s failed: %s", oid, e)
+        _send(token, chat, T_PAY_OXA_FAIL)
+        return
+    kb = {"inline_keyboard": [[{"text": T_BTN_PAY_OPEN, "url": pay["PayLink"]}]]} \
+        if pay["PayLink"] else None
+    _send(token, chat, T_PAY_OXA_SENT.format(
+        gwa=f"{float(pay['GwAmount']):g}", asset=pay["Asset"]), kb)
 
 
 # ── customer flows ───────────────────────────────────────────────────────────
@@ -412,6 +489,32 @@ def _handle_message(token: str, msg: Wire) -> None:
             return
         _send(token, chat, _order_text(order))
         _notify_admin_order(token, order)
+        _send_pay_menu(token, chat, order)
+        return
+
+    if mode and mode.startswith("c2c:"):
+        # the buyer owes this order its card-to-card tracking reference
+        oid = int(mode.split(":", 1)[1])
+        order = get_db().query_one('SELECT * FROM "TgOrder" WHERE "TgOrderID" = :i', {"i": oid})
+        if not order or str(order["ChatID"]) != str(chat):
+            _send(token, chat, T_PAY_NO_ORDER)
+            return
+        ref = text.strip()[:64]
+        if not ref:
+            _send(token, chat, T_PAY_REF_BAD)
+            _awaiting[chat] = mode  # still owed
+            return
+        try:
+            payments.create_card2card(
+                float(order["Price"] or 0), currency=order["Currency"],
+                buyer=tgname or str(chat), chat_id=chat, order_id=oid,
+                ref=ref, note=f"telegram order #{oid}", source="telegram",
+            )
+        except ValueError as e:
+            _send(token, chat, f"❌ {e}")
+            _awaiting[chat] = mode
+            return
+        _send(token, chat, T_PAY_C2C_WAIT)
         return
 
     if text.startswith("/start"):
@@ -585,6 +688,37 @@ def _handle_callback(token: str, cb: Wire) -> None:
                 _answer(token, cb_id, "رد شد")
         except ValueError as e:
             _answer(token, cb_id, str(e))
+        return
+    if data.startswith(("payok:", "payno:")):
+        decide, pid = data.split(":", 1)
+        if not _is_admin(chat):
+            _answer(token, cb_id, "فقط ادمین")
+            return
+        try:
+            if decide == "payok":
+                payments.decide(int(pid), True, actor={"Username": "telegram"}, source="telegram")
+                _answer(token, cb_id, "پرداخت تأیید شد")
+            else:
+                payments.decide(int(pid), False, actor={"Username": "telegram"}, source="telegram")
+                _answer(token, cb_id, "پرداخت رد شد")
+        except ValueError as e:
+            _answer(token, cb_id, str(e))
+        return
+    if data.startswith("payc2c:"):
+        oid = int(data.split(":", 1)[1])
+        order = get_db().query_one('SELECT * FROM "TgOrder" WHERE "TgOrderID" = :i', {"i": oid})
+        if not order or str(order["ChatID"]) != str(chat):
+            _answer(token, cb_id, "سفارش پیدا نشد")
+            return
+        _awaiting[chat] = f"c2c:{oid}"
+        _answer(token, cb_id)
+        _send(token, chat, T_PAY_C2C_INFO.format(card_text=payments.card_text() or
+                                                 str(get_setting("telegram_pay_note") or "")))
+        return
+    if data.startswith("payoxa:"):
+        oid = int(data.split(":", 1)[1])
+        _answer(token, cb_id)
+        _pay_oxa_for_order(token, chat, oid)
         return
     _answer(token, cb_id)
 

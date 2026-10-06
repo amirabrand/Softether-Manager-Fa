@@ -372,6 +372,15 @@ export const IconGlobe = (p: P) => (
   </S>
 );
 
+/** Bank card — payments: card-to-card receipts and the gateway. */
+export const IconCard = (p: P) => (
+  <S {...p}>
+    <rect x="2.5" y="5" width="19" height="14" rx="2.2" />
+    <path d="M2.5 9.5h19" />
+    <path d="M6 15h4" />
+  </S>
+);
+
 /**
  * The mark: a hub ring with spokes -- SoftEther's virtual hub, as a badge --
  * solid accent with white strokes, per the system.

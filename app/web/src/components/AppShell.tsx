@@ -10,6 +10,7 @@ import {
   BrandMark,
   IconBack,
   IconBolt,
+  IconCard,
   IconCheck,
   IconChevron,
   IconClock,
@@ -85,6 +86,7 @@ const DESTINATIONS = (t: (key: string) => string, role: string) =>
   { to: "/sales", label: t("Subscription sales"), icon: <IconTag size={19} />, match: (p: string) => p === "sales" },
   { to: "/expirations", label: t("Upcoming expirations"), icon: <IconClock size={19} />, match: (p: string) => p === "expirations" },
   { to: "/telegram", label: t("Telegram bot"), icon: <IconBolt size={19} />, match: (p: string) => p === "telegram" },
+  { to: "/payments", label: t("Payments"), icon: <IconCard size={19} />, match: (p: string) => p === "payments" },
   { to: "/resellers", label: t("Resellers"), icon: <IconTable size={19} />, match: (p: string) => p === "resellers" },
   { to: "/users", label: t("Users"), icon: <IconUsers size={19} /> , match: (p: string) => p === "users" },
   { to: "/connections", label: t("Connections"), icon: <IconPulse size={19} />, match: (p: string) => p === "connections" },
@@ -266,6 +268,7 @@ function TopBar() {
   else if (p[0] === "sales") title = t("Subscription sales");
   else if (p[0] === "expirations") title = t("Upcoming expirations");
   else if (p[0] === "telegram") title = t("Telegram bot");
+  else if (p[0] === "payments") title = t("Payments");
   else if (p[0] === "resellers" || p[0] === "reseller") title = t("Reseller desk");
   else if (p[0] === "settings") title = t("Settings");
   else if (p[0] === "connect") title = t("Connect");

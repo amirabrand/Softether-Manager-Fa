@@ -280,6 +280,42 @@ TABLES: list[str] = [
         "CreatedBy"   TEXT    NOT NULL DEFAULT ''
     )
     """,
+    # --- payments: card-to-card receipts and the Oxapay gateway ----------------
+    # One row per payment a customer or reseller reports:
+    #   * "card2card" -- money moved manually; the buyer reports the tracking
+    #     reference and an operator confirms it (panel buttons or the bot's
+    #     inline keys). Until then the row is the promise, not the money.
+    #   * "oxapay"    -- an invoice on the crypto gateway; the gateway's
+    #     webhook (or the operator's status check) confirms it.
+    # An approved payment does its job through whichever link it carries:
+    # "OrderID" auto-approves the linked Telegram order (the sale core runs,
+    # the account is delivered in chat) and "UserID" credits the linked
+    # reseller's wallet. A row may carry both, either, or -- for an operator
+    # bookkeeping receipt -- neither. "Amount" is in the shop's own currency;
+    # "GwAmount"/"Asset" snapshot what the gateway was actually asked for.
+    """
+    CREATE TABLE IF NOT EXISTS "PayReq" (
+        "PayReqID"    INTEGER PRIMARY KEY AUTOINCREMENT,
+        "Kind"        TEXT    NOT NULL DEFAULT 'card2card',
+        "Amount"      REAL    NOT NULL DEFAULT 0,
+        "Currency"    TEXT    NOT NULL DEFAULT '',
+        "Status"      TEXT    NOT NULL DEFAULT 'pending',
+        "Buyer"       TEXT    NOT NULL DEFAULT '',
+        "ChatID"      TEXT    NOT NULL DEFAULT '',
+        "UserID"      INTEGER NOT NULL DEFAULT 0,
+        "OrderID"     INTEGER NOT NULL DEFAULT 0,
+        "Ref"         TEXT    NOT NULL DEFAULT '',
+        "TrackID"     TEXT    NOT NULL DEFAULT '',
+        "PayLink"     TEXT    NOT NULL DEFAULT '',
+        "GwAmount"    REAL    NOT NULL DEFAULT 0,
+        "Asset"       TEXT    NOT NULL DEFAULT '',
+        "MessageID"   TEXT    NOT NULL DEFAULT '',
+        "Note"        TEXT    NOT NULL DEFAULT '',
+        "CreatedDate" TEXT    NOT NULL,
+        "DecidedDate" TEXT    NOT NULL DEFAULT '',
+        "DecidedBy"   TEXT    NOT NULL DEFAULT ''
+    )
+    """,
     # --- panel settings and audit ---------------------------------------------
     """
     CREATE TABLE IF NOT EXISTS "Setting" (
@@ -324,6 +360,7 @@ INDEXES: list[str] = [
     'CREATE INDEX IF NOT EXISTS "IX_TrafficQuota_Hub" '
     'ON "TrafficQuota"("HubName", "SubjectType")',
     'CREATE INDEX IF NOT EXISTS "IX_Sale_Date" ON "Sale"("CreatedDate")',
+    'CREATE INDEX IF NOT EXISTS "IX_PayReq_Status" ON "PayReq"("Status", "CreatedDate")',
 ]
 
 SEEDS: list[tuple[str, list[dict]]] = []

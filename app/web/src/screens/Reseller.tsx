@@ -60,6 +60,24 @@ export function Reseller() {
   }>(null);
   const [txs, setTxs] = useState<null | { TxList: Wire[]; Balance_f64: number }>(null);
 
+  // wallet top-up: card-to-card request + oxapay invoice + my payment requests
+  const [pc, setPc] = useState<null | {
+    CardNumber_str: string;
+    CardHolder_str: string;
+    CardBank_str: string;
+    PayNote_utf: string;
+    OxapayEnabled_b: boolean;
+    OxapayCurrency_str: string;
+    Currency_str: string;
+  }>(null);
+  const [topAmount, setTopAmount] = useState("");
+  const [topRef, setTopRef] = useState("");
+  const [topBusy, setTopBusy] = useState(false);
+  const [oxaAmount, setOxaAmount] = useState("");
+  const [oxaBusy, setOxaBusy] = useState(false);
+  const [oxaLink, setOxaLink] = useState("");
+  const [myPays, setMyPays] = useState<null | { PayReqList: Wire[]; Pending_u32: number }>(null);
+
   const loadAll = useCallback(async () => {
     const out = await api.resellerOverview().catch(() => null);
     if (out) {
@@ -81,9 +99,52 @@ export function Reseller() {
     if (out) setTxs(out);
   }, []);
 
+  const loadPays = useCallback(async () => {
+    const out = await api.resellerPayConfig().catch(() => null);
+    if (out) setPc(out);
+    const mine = await api.resellerPayments().catch(() => null);
+    if (mine) setMyPays(mine);
+  }, []);
+
   useEffect(() => {
     void loadAll();
-  }, [loadAll]);
+    void loadPays();
+  }, [loadAll, loadPays]);
+
+  const topUp = async () => {
+    if (!(Number(topAmount) > 0)) return;
+    setTopBusy(true);
+    try {
+      await api.resellerTopupC2C({
+        amount: Number(topAmount),
+        ref: topRef.trim(),
+      });
+      push("ok", t("Top-up requested — waiting for the operator's confirmation."));
+      setTopAmount("");
+      setTopRef("");
+      void loadPays();
+    } catch (e) {
+      push("err", e instanceof Error ? t(e.message) : String(e));
+    } finally {
+      setTopBusy(false);
+    }
+  };
+
+  const topUpOxa = async () => {
+    if (!(Number(oxaAmount) > 0)) return;
+    setOxaBusy(true);
+    try {
+      const out = await api.resellerTopupOxa({ amount: Number(oxaAmount) });
+      setOxaLink(String((out.PayReq ?? {}).PayLink ?? ""));
+      push("ok", t("Invoice created."));
+      setOxaAmount("");
+      void loadPays();
+    } catch (e) {
+      push("err", e instanceof Error ? t(e.message) : String(e));
+    } finally {
+      setOxaBusy(false);
+    }
+  };
 
   const price = (g: string) => (ov?.Prices ?? []).find((p) => p.group === g) ?? null;
   const sel = price(group);
@@ -291,6 +352,114 @@ export function Reseller() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* -------- wallet top-up: card-to-card + oxapay -------- */}
+      <div className="card pad" style={{ marginTop: "var(--s4)" }}>
+        <SectionTitle count={myPays?.Pending_u32 || undefined}>{t("Wallet top-up")}</SectionTitle>
+        {pc === null ? (
+          <LoadingBlock label={t("loading")} />
+        ) : (
+          <div className="grid2" style={{ gap: "var(--s4)" }}>
+            <div>
+              <SectionTitle>{t("Top up by card-to-card")}</SectionTitle>
+              <p className="tsub">
+                {t("Transfer to the card below, then report the tracking reference here; the operator confirms it and your wallet fills up.")}
+              </p>
+              {(pc.CardNumber_str || pc.CardHolder_str || pc.PayNote_utf) && (
+                <div className="alert alert--info mono" dir="ltr" style={{ textAlign: "left" }}>
+                  {pc.CardNumber_str && <div><b>{pc.CardNumber_str}</b></div>}
+                  {pc.CardHolder_str && <div>{pc.CardHolder_str}</div>}
+                  {pc.CardBank_str && <div>{pc.CardBank_str}</div>}
+                  {pc.PayNote_utf && <div style={{ marginTop: 6 }}>{pc.PayNote_utf}</div>}
+                </div>
+              )}
+              <div className="grid2">
+                <Field label={t("Amount (shop currency)")}>
+                  <input className="input mono" type="number" min={1} value={topAmount}
+                         onChange={(e) => setTopAmount(e.target.value)} placeholder="500000" />
+                </Field>
+                <Field label={t("Tracking reference")}>
+                  <input className="input mono" value={topRef} onChange={(e) => setTopRef(e.target.value)} />
+                </Field>
+              </div>
+              <div style={{ marginTop: "var(--s3)" }}>
+                <button className="btn btn--primary" disabled={topBusy || !(Number(topAmount) > 0)} onClick={topUp}>
+                  {topBusy && <span className="spin" style={{ width: 13, height: 13 }} />}
+                  <IconPlus size={15} /> {t("Request top-up")}
+                </button>
+              </div>
+            </div>
+
+            {pc.OxapayEnabled_b && (
+              <div>
+                <SectionTitle>{t("Top up with Oxapay")}</SectionTitle>
+                <p className="tsub">
+                  {t("Pay the invoice; your wallet fills automatically once the network confirms.")}
+                </p>
+                <div className="grid2">
+                  <Field label={t("Amount (shop currency)")}>
+                    <input className="input mono" type="number" min={1} value={oxaAmount}
+                           onChange={(e) => setOxaAmount(e.target.value)} placeholder="540000" />
+                  </Field>
+                  <Field label={t("Gateway currency")}>
+                    <div className="sale-sum" style={{ marginTop: 0 }}>
+                      <b className="tmono">{pc.OxapayCurrency_str}</b>
+                    </div>
+                  </Field>
+                </div>
+                <div style={{ display: "flex", gap: "var(--s2)", marginTop: "var(--s3)", flexWrap: "wrap" }}>
+                  <button className="btn btn--primary" disabled={oxaBusy || !(Number(oxaAmount) > 0)} onClick={topUpOxa}>
+                    {oxaBusy && <span className="spin" style={{ width: 13, height: 13 }} />}
+                    <IconPlus size={15} /> {t("Create invoice")}
+                  </button>
+                  {oxaLink && (
+                    <a className="btn btn--ghost" href={oxaLink} target="_blank" rel="noreferrer">
+                      {t("Open payment link")}
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {myPays && myPays.PayReqList.length > 0 && (
+          <div style={{ marginTop: "var(--s4)" }}>
+            <SectionTitle>{t("Your payment requests")}</SectionTitle>
+            <div className="tscroll">
+              <table className="dtable">
+                <thead>
+                  <tr>
+                    <th>{t("Date")}</th>
+                    <th>{t("Method")}</th>
+                    <th>{t("Amount")}</th>
+                    <th>{t("Status")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myPays.PayReqList.map((p) => (
+                    <tr key={String(p.PayReqID)}>
+                      <td className="tmono">{fmtDate(String(p.CreatedDate))}</td>
+                      <td>{p.Kind === "oxapay" ? `🪙 ${t("oxapay")}` : `💳 ${t("card-to-card")}`}</td>
+                      <td className="tmono">
+                        {fmtNum(Number(p.Amount))} {String(p.Currency || "")}
+                      </td>
+                      <td>
+                        {p.Status === "pending" ? (
+                          <span className="pill pill--warn">{t("Pending")}</span>
+                        ) : p.Status === "approved" ? (
+                          <span className="pill pill--ok">{t("Approved")}</span>
+                        ) : (
+                          <span className="pill pill--err">{t("Rejected")}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* -------- purchase history -------- */}
