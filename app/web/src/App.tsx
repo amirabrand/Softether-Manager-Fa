@@ -23,6 +23,7 @@ import { UserDetail } from "./screens/UserDetail";
 import { Settings } from "./screens/Settings";
 import { Sales } from "./screens/Sales";
 import { Expirations } from "./screens/Expirations";
+import { TelegramBot } from "./screens/TelegramBot";
 
 export default function App() {
   return (
@@ -86,6 +87,8 @@ function Routed() {
     screen = <Sales />;
   } else if (p[0] === "expirations") {
     screen = <Expirations />;
+  } else if (p[0] === "telegram") {
+    screen = <TelegramBot />;
   } else if (p[0] === "logs") {
     screen = <Logs />;
   } else if (p[0] === "console") {

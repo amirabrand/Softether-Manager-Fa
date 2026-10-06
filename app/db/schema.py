@@ -189,6 +189,59 @@ TABLES: list[str] = [
         "IsDeleted"    INTEGER NOT NULL DEFAULT 0
     )
     """,
+    # --- the Telegram bot ------------------------------------------------------
+    # The bot's address book and order book. "TgLink" ties a Telegram chat to
+    # a VPN account, so reminders and "my subscription" know who they talk
+    # to. "TgOrder" is one purchase request from the bot: it stays pending
+    # until the operator approves it (payment confirmed), and the approval
+    # runs the same sale core the till uses -- the account, the expiry, the
+    # limits and a "Sale" ledger row all in one motion. "TgNotify" remembers
+    # which expiry reminder already went to which chat, so the hourly scan
+    # never nags twice.
+    """
+    CREATE TABLE IF NOT EXISTS "TgLink" (
+        "TgLinkID"    INTEGER PRIMARY KEY AUTOINCREMENT,
+        "ChatID"      TEXT    NOT NULL,
+        "HubName"     TEXT    NOT NULL,
+        "UserName"    TEXT    NOT NULL,
+        "TgName"      TEXT    NOT NULL DEFAULT '',
+        "CreatedDate" TEXT    NOT NULL,
+        UNIQUE("ChatID", "HubName", "UserName")
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "TgOrder" (
+        "TgOrderID"   INTEGER PRIMARY KEY AUTOINCREMENT,
+        "ChatID"      TEXT    NOT NULL,
+        "TgName"      TEXT    NOT NULL DEFAULT '',
+        "HubName"     TEXT    NOT NULL DEFAULT '',
+        "UserName"    TEXT    NOT NULL,
+        "GroupName"   TEXT    NOT NULL DEFAULT '',
+        "Months"      INTEGER NOT NULL DEFAULT 0,
+        "Price"       REAL    NOT NULL DEFAULT 0,
+        "Currency"    TEXT    NOT NULL DEFAULT '',
+        "VolumeGB"    REAL    NOT NULL DEFAULT 0,
+        "MaxOnline"   INTEGER NOT NULL DEFAULT 0,
+        "Kind"        TEXT    NOT NULL DEFAULT 'new',
+        "Status"      TEXT    NOT NULL DEFAULT 'pending',
+        "MessageID"   TEXT    NOT NULL DEFAULT '',
+        "Note"        TEXT    NOT NULL DEFAULT '',
+        "CreatedDate" TEXT    NOT NULL,
+        "DecidedDate" TEXT    NOT NULL DEFAULT '',
+        "DecidedBy"   TEXT    NOT NULL DEFAULT ''
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "TgNotify" (
+        "TgNotifyID"  INTEGER PRIMARY KEY AUTOINCREMENT,
+        "ChatID"      TEXT    NOT NULL,
+        "HubName"     TEXT    NOT NULL,
+        "UserName"    TEXT    NOT NULL,
+        "Kind"        TEXT    NOT NULL,
+        "SentDate"    TEXT    NOT NULL,
+        UNIQUE("ChatID", "HubName", "UserName", "Kind")
+    )
+    """,
     # --- discount coupons ------------------------------------------------------
     # The marketing side of the till: a code the operator hands a customer,
     # the percent it takes off a sale's list price, how many times it may be

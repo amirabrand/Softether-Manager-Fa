@@ -88,6 +88,16 @@ DEFAULTS: dict[str, Any] = {
     # Both are edited from the Sales page, not the Settings page.
     "sale_pricing": None,
     "sale_currency": None,
+    # --- the Telegram bot -----------------------------------------------------
+    # The shopfront bot: a token from @BotFather, the operator's chat id that
+    # receives order approvals, the payment instructions shown to buyers
+    # (card-to-card text, typically), which days-before-expiry reminders fire
+    # (a comma list; "0" adds an expired notice), and the on/off switch.
+    "telegram_bot_token": None,
+    "telegram_admin_chat": None,
+    "telegram_pay_note": None,
+    "telegram_reminder_days": None,
+    "telegram_enabled": None,
 }
 
 
@@ -137,6 +147,11 @@ def _seed(key: str) -> Any:
             "1year": {"price": 1300000, "volume_gb": 600, "max_online": 5},
         },
         "sale_currency": "تومان",
+        "telegram_bot_token": "",
+        "telegram_admin_chat": "",
+        "telegram_pay_note": "",
+        "telegram_reminder_days": "7,3,1",
+        "telegram_enabled": True,
     }[key]
 
 

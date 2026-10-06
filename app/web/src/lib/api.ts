@@ -444,6 +444,31 @@ export const api = {
       ByDay: { date: string; count: number; net: number }[];
       ByPlan: { group: string; count: number; net: number }[];
     }>("GET", `/sales/stats?days=${days}`),
+  // -- the Telegram shop bot ------------------------------------------------------------
+  telegramConfig: () =>
+    request<{
+      BotUsername_str: string;
+      Running_b: boolean;
+      Error_utf: string;
+      BotToken_mask: string;
+      AdminChat_str: string;
+      PayNote_utf: string;
+      ReminderDays_str: string;
+      Enabled_b: boolean;
+    }>("GET", `/telegram/config`),
+  telegramSave: (body: Wire) => request("PUT", `/telegram/config`, body),
+  telegramLinks: () => request("GET", `/telegram/links`),
+  telegramUnlink: (id: number) => request("DELETE", `/telegram/links/${id}`),
+  telegramOrders: (status = "") =>
+    request<{ OrderList: Wire[]; Pending_u32: number }>(
+      "GET",
+      `/telegram/orders${status ? `?status=${encodeURIComponent(status)}` : ""}`,
+    ),
+  telegramApprove: (id: number) => request("POST", `/telegram/orders/${id}/approve`),
+  telegramReject: (id: number, note = "") =>
+    request("POST", `/telegram/orders/${id}/reject`, note ? { note } : {}),
+  telegramRunReminders: () =>
+    request<{ Sent_u32: number }>("POST", `/telegram/reminders/run`),
   // A renewal is a fresh period: the volume meter the plan sold restarts
   // with it (reset_volume), so the customer gets the allowance they paid for.
   renew: (hub: string, name: string, months: number, resetVolume = true) =>

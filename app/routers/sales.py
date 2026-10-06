@@ -22,9 +22,6 @@ page; the backend only validates their shape and stores what the page sends.
 """
 from __future__ import annotations
 
-import calendar
-import secrets
-import string
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
@@ -36,6 +33,13 @@ from ..db import get_db, utc_now
 from ..deps import CurrentUser
 from ..se import rpc
 from ..services import quota
+from ..services.selling import (
+    GB,
+    add_months as _add_months,
+    parse_expire as _parse_expire,
+    perform_sale,
+    suggest_password,
+)
 
 router = APIRouter(tags=["sales"])
 
@@ -45,30 +49,6 @@ Wire = dict[str, Any]
 NEVER = datetime(1970, 1, 1)
 
 GB = 1024 ** 3
-
-
-def _add_months(base: datetime, months: int) -> datetime:
-    """Whole calendar months, landing on the same day of the month."""
-    m = base.month - 1 + months
-    y = base.year + m // 12
-    mo = m % 12 + 1
-    d = min(base.day, calendar.monthrange(y, mo)[1])
-    return base.replace(year=y, month=mo, day=d)
-
-
-def _parse_expire(raw: Any) -> Optional[datetime]:
-    if not raw:
-        return None
-    try:
-        return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).replace(tzinfo=None)
-    except ValueError:
-        return None
-
-
-def suggest_password(length: int = 12) -> str:
-    """A readable password: no look-alikes, digits and letters balanced."""
-    alphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"
-    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 class SaleIn(BaseModel):
@@ -101,69 +81,6 @@ def sell_subscription(hub: str, body: SaleIn, user: dict = CurrentUser) -> Wire:
     if not name:
         raise HTTPException(status_code=422, detail="The username may not be empty.")
 
-    now = datetime.now()
-    expire = _add_months(now, body.months)
-
-    # An existing account is either extended (keeping paid days) or refused;
-    # silently overwriting one would destroy a customer's credential.
-    existing: Wire = {}
-    try:
-        existing = rpc("GetUser", {"HubName_str": hub, "Name_str": name})
-    except Exception:  # noqa: BLE001 -- not found is the normal path
-        existing = {}
-    if existing.get("Name_str"):
-        if not body.extend_if_exists:
-            raise HTTPException(
-                status_code=409,
-                detail=f"A user named {name} already exists on hub {hub}. "
-                "Enable 'extend' to add months to that account instead.",
-            )
-        current = _parse_expire(existing.get("ExpireTime_dt"))
-        base = now
-        if current is not None and current.year > 1970 and current > now:
-            base = current
-        expire = _add_months(base, body.months)
-
-    wire: Wire = {
-        "HubName_str": hub,
-        "Name_str": name,
-        "Realname_utf": body.realname,
-        "Note_utf": body.note,
-        "AuthType_u32": 1,
-        "ExpireTime_dt": expire.isoformat(),
-    }
-    if body.group:
-        wire["GroupName_str"] = body.group
-    if body.password:
-        wire["Auth_Password_str"] = body.password
-
-    if existing.get("Name_str"):
-        # Round-trip so a sale of an existing account changes only the expiry.
-        round_trip = {
-            k: v for k, v in existing.items()
-            if not k.startswith(("Recv.", "Send.")) and k != "Auth_Password_str"
-        }
-        round_trip.update({k: v for k, v in wire.items() if k != "HubName_str"})
-        rpc("SetUser", {**round_trip, "HubName_str": hub, "Name_str": name})
-    else:
-        rpc("CreateUser", wire)
-
-    # --- the plan's limits -------------------------------------------------
-    volume_bytes = int(round(body.volume_gb * GB))
-    if volume_bytes > 0:
-        # The ceiling rides on the quota machinery: the tick blocks the user
-        # (and cuts their sessions) the moment the counter passes it. The
-        # meter starts at zero *here* -- SoftEther's counters never reset,
-        # so the baseline moves up to the current reading -- and an old
-        # block lifts: the customer just paid, and a paying customer is
-        # entitled to a working account.
-        quota.save("user", hub, name, volume_bytes, "total", True)
-        quota.reset_transfer("user", hub, name)
-    else:
-        # An unlimited plan lifts any ceiling a previous sale put up -- the
-        # baseline record survives, the ceiling and its block do not.
-        quota.delete("user", hub, name)
-
     db = get_db()
 
     # --- the coupon, if the sale carries one -------------------------------
@@ -188,28 +105,19 @@ def sell_subscription(hub: str, body: SaleIn, user: dict = CurrentUser) -> Wire:
             {"c": coupon_code},
         )
 
-    sale_id = db.execute(
-        'INSERT INTO "Sale"("HubName", "UserName", "GroupName", "Months", "Price", '
-        '"Currency", "VolumeBytes", "MaxOnline", "Discount", "CouponCode", '
-        '"BuyerName", "Note", "CreatedDate", "CreatedBy") '
-        "VALUES (:hub, :user, :grp, :months, :price, :cur, :vol, :mon, :disc, :cpn, "
-        ":buyer, :note, :now, :by)",
-        {
-            "hub": hub, "user": name, "grp": body.group, "months": body.months,
-            "price": body.price, "cur": body.currency, "vol": volume_bytes,
-            "mon": body.max_online, "disc": discount, "cpn": coupon_code,
-            "buyer": body.buyer,
-            "note": body.note, "now": utc_now(), "by": str(user.get("Username", "")),
-        },
-    )
-    record(user, "sale.completed", "vpn_user", name,
-           f"hub {hub} {body.group} {body.months}m price {body.price} {body.currency} "
-           f"volume {body.volume_gb:g}GB online {body.max_online}"
-           + (f" coupon {coupon_code} -{discount:g}" if discount else ""))
-    row = db.query_one('SELECT * FROM "Sale" WHERE "SaleID" = :id', {"id": sale_id})
+    try:
+        out = perform_sale(
+            hub, name, months=body.months, group=body.group, realname=body.realname,
+            note=body.note, password=body.password, volume_gb=body.volume_gb,
+            max_online=body.max_online, price=body.price, currency=body.currency,
+            buyer=body.buyer, extend_if_exists=body.extend_if_exists,
+            discount=discount, coupon_code=coupon_code, actor=user, source="panel",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from None
     return {
-        "sale": dict(row) if row else {},
-        "user": {"HubName_str": hub, "Name_str": name, "ExpireTime_dt": expire.isoformat()},
+        "sale": out["sale"],
+        "user": {"HubName_str": hub, "Name_str": name, "ExpireTime_dt": out["expire"]},
     }
 
 

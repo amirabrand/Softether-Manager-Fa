@@ -119,7 +119,12 @@ class SettingsIn(BaseModel):
 
 @router.get("/settings")
 def get_panel_settings(user: dict = CurrentUser) -> dict[str, Any]:
-    return all_settings()
+    out = all_settings()
+    # The bot token is a credential: the settings readout only shows its
+    # tail, so a shared screen or a leaked log never carries the whole thing.
+    tok = str(out.get("telegram_bot_token") or "")
+    out["telegram_bot_token"] = ("\u2022\u2022\u2022\u2022" + tok[-6:]) if len(tok) > 12 else tok
+    return out
 
 
 @router.put("/settings")

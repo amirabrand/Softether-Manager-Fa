@@ -29,9 +29,10 @@ from fastapi.staticfiles import StaticFiles
 from . import hostguard
 from .config import APP_ROOT, settings
 from .db import get_db
-from .routers import auth, connection, quota, sales, se_hub, se_rpc, se_server, system, users
+from .routers import auth, connection, quota, sales, se_hub, se_rpc, se_server, system, telegram, users
 from .services import sampler
 from .services import tls
+from .services import telegram as telegram_bot
 from .services.resources import sampler as resource_sampler
 from .version import get_version
 
@@ -45,6 +46,9 @@ async def _lifespan(_inner: FastAPI):
     get_db()  # creates the schema (and migrations) on first start
     sampler.start()
     resource_sampler.start()
+    # The shop bot polls Telegram only when a token is configured; without
+    # one this returns immediately.
+    telegram_bot.start()
     # The extra listeners serve the same wrapped application the main one
     # does -- the module-level ``app`` below, host guard included -- so a
     # request is treated identically whichever port it arrived on.
@@ -53,6 +57,7 @@ async def _lifespan(_inner: FastAPI):
     tls.manager.stop()
     sampler.stop()
     resource_sampler.stop()
+    telegram_bot.stop()
 
 
 def _build_core() -> FastAPI:
@@ -81,6 +86,7 @@ def _build_core() -> FastAPI:
         quota.router,
         se_rpc.router,
     sales.router,
+    telegram.router,
     ):
         app.include_router(router, prefix="/api/v1")
 
