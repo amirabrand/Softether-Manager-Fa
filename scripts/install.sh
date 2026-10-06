@@ -1055,6 +1055,38 @@ if [[ $READY -eq 0 ]]; then
   fail "$EXIT_SERVICE_FAILED" "The service started but the panel never answered at $HEALTH_URL."
 fi
 
+# ---------------------------------------------------------------- firewall
+
+# The box now runs a VPN shop: HTTP(S)/OpenConnect/SSTP, OpenVPN, L2TP/IPsec,
+# the server's own management RPC and the panel's own port. ufw on the Debian
+# side, firewalld on the RPM side. The firewall itself is never enabled here:
+# turning one on under a live SSH session is how people lock themselves out.
+open_firewall_ports() {
+  local p
+  local ports_tcp=("$PORT" 80 443 5555)
+  local ports_udp=(1194 500 4500)
+  if command -v ufw >/dev/null 2>&1; then
+    for p in "${ports_tcp[@]}"; do ufw allow "$p/tcp" >/dev/null 2>&1 || true; done
+    for p in "${ports_udp[@]}"; do ufw allow "$p/udp" >/dev/null 2>&1 || true; done
+    ufw reload >/dev/null 2>&1 || true
+    if ! ufw status 2>/dev/null | grep -q "Status: active"; then
+      warn "UFW is INACTIVE: the rules were recorded but the firewall is off ('ufw enable' turns it on)."
+    fi
+    step "Firewall ports opened (ufw): TCP ${ports_tcp[*]} | UDP ${ports_udp[*]}"
+    return 0
+  fi
+  if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+    for p in "${ports_tcp[@]}"; do firewall-cmd --permanent --add-port="$p/tcp" >/dev/null 2>&1 || true; done
+    for p in "${ports_udp[@]}"; do firewall-cmd --permanent --add-port="$p/udp" >/dev/null 2>&1 || true; done
+    firewall-cmd --reload >/dev/null 2>&1 || true
+    step "Firewall ports opened (firewalld): TCP ${ports_tcp[*]} | UDP ${ports_udp[*]}"
+    return 0
+  fi
+  warn "No ufw/firewalld here: if a firewall exists (cloud console), open TCP ${ports_tcp[*]} and UDP ${ports_udp[*]}."
+}
+
+open_firewall_ports
+
 # ---------------------------------------------------------------- first account
 
 ACCOUNT_CREATED=0
