@@ -230,11 +230,11 @@ export const api = {
   // -- auth ------------------------------------------------------------------
   authState: () => request<{ setup_required: boolean }>("GET", "/auth/state"),
   setup: (username: string, password: string) =>
-    request<{ token: string; username: string }>("POST", "/auth/setup", { username, password }),
+    request<{ token: string; username: string; role: string }>("POST", "/auth/setup", { username, password }),
   login: (username: string, password: string) =>
-    request<{ token: string; username: string }>("POST", "/auth/login", { username, password }),
+    request<{ token: string; username: string; role: string }>("POST", "/auth/login", { username, password }),
   logout: () => request("POST", "/auth/logout"),
-  me: () => request<{ username: string }>("GET", "/auth/me"),
+  me: () => request<{ username: string; role: string }>("GET", "/auth/me"),
   changePassword: (current_password: string, new_password: string) =>
     request("PUT", "/auth/password", { current_password, new_password }),
 
@@ -469,6 +469,27 @@ export const api = {
     request("POST", `/telegram/orders/${id}/reject`, note ? { note } : {}),
   telegramRunReminders: () =>
     request<{ Sent_u32: number }>("POST", `/telegram/reminders/run`),
+
+  // -- reseller desk (the reseller's own corner) ----------------------------------------
+  resellerOverview: () =>
+    request<Wire>("GET", `/reseller/overview`),
+  resellerPurchase: (body: Wire) => request("POST", `/reseller/purchase`, body),
+  resellerPurchases: () =>
+    request<{ SaleList: Wire[]; Count_u32: number; Sum_f64: number }>(
+      "GET",
+      `/reseller/purchases?limit=100`,
+    ),
+  resellerWallet: () =>
+    request<{ TxList: Wire[]; Balance_f64: number }>("GET", `/reseller/wallet?limit=50`),
+
+  // -- resellers (the operator's side) --------------------------------------------------
+  resellersList: () =>
+    request<{ ResellerList: Wire[]; Count_u32: number }>("GET", `/resellers`),
+  resellerCreate: (body: Wire) => request("POST", `/resellers`, body),
+  resellerUpdate: (uid: number, body: Wire) =>
+    request("PUT", `/resellers/${uid}`, body),
+  resellerTopup: (uid: number, body: Wire) =>
+    request<{ Balance_f64: number }>("POST", `/resellers/${uid}/topup`, body),
   // A renewal is a fresh period: the volume meter the plan sold restarts
   // with it (reset_volume), so the customer gets the allowance they paid for.
   renew: (hub: string, name: string, months: number, resetVolume = true) =>

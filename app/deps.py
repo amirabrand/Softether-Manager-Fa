@@ -29,12 +29,22 @@ def require_user(request: Request) -> dict[str, Any]:
     if not claims:
         raise HTTPException(status_code=401, detail="Not signed in.")
     user = get_db().query_one(
-        'SELECT "UserID", "Username" FROM "PanelUser" '
+        'SELECT "UserID", "Username", "Role" FROM "PanelUser" '
         'WHERE "UserID" = :id AND "IsDeleted" = 0',
         {"id": claims.get("uid")},
     )
     if user is None:
         raise HTTPException(status_code=401, detail="This account no longer exists.")
+    user = dict(user)
+    # A reseller sign-in reaches exactly one corner of the API: its own
+    # reseller desk (and the auth plumbing). Everything else -- hubs, sales,
+    # settings, other resellers -- answers 403, here, before any router runs.
+    if user["Role"] == "reseller":
+        path = request.url.path
+        allowed = ("/api/v1/reseller", "/api/v1/auth/me", "/api/v1/auth/logout",
+                   "/api/v1/auth/password", "/api/v1/auth/state")
+        if not path.startswith(allowed):
+            raise HTTPException(status_code=403, detail="Reseller sign-ins only reach the reseller desk.")
     return user
 
 

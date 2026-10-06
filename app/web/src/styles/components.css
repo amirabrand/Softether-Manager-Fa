@@ -1486,3 +1486,40 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ── Reseller desk: wallet balance + read-only price rows ──────────────── */
+.wallet-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-ctl);
+  border: 1px solid var(--accent-line, var(--glass-line));
+  background: var(--accent-soft);
+}
+.wallet-balance small {
+  color: var(--text-muted);
+  font-size: var(--t-micro);
+}
+.wallet-balance b {
+  font-size: var(--t-kpi);
+  line-height: 1.15;
+}
+.wallet-balance b i {
+  font-style: normal;
+  font-size: var(--t-small);
+  color: var(--text-muted);
+}
+.pricerow--read {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--glass-line);
+}
+.pricerow--read:last-child {
+  border-bottom: 0;
+}
+.tok { color: var(--ok); }
+.tbad { color: var(--err); }

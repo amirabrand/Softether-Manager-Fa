@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from . import hostguard
 from .config import APP_ROOT, settings
 from .db import get_db
-from .routers import auth, connection, quota, sales, se_hub, se_rpc, se_server, system, telegram, users
+from .routers import auth, connection, quota, resellers, sales, se_hub, se_rpc, se_server, system, telegram, users
 from .services import sampler
 from .services import tls
 from .services import telegram as telegram_bot
@@ -87,6 +87,8 @@ def _build_core() -> FastAPI:
         se_rpc.router,
     sales.router,
     telegram.router,
+    resellers.self_router,
+    resellers.admin_router,
     ):
         app.include_router(router, prefix="/api/v1")
 

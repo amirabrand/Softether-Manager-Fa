@@ -28,9 +28,28 @@ TABLES: list[str] = [
         "UserID"        INTEGER PRIMARY KEY AUTOINCREMENT,
         "Username"      TEXT    NOT NULL UNIQUE,
         "PasswordHash"  TEXT    NOT NULL,
+        "Role"          TEXT    NOT NULL DEFAULT 'admin',
+        "Rate"          REAL    NOT NULL DEFAULT 100,
         "CreatedDate"   TEXT    NOT NULL,
         "UpdatedDate"   TEXT    NOT NULL,
         "IsDeleted"     INTEGER NOT NULL DEFAULT 0
+    )
+    """,
+    # --- reseller wallets --------------------------------------------------------
+    # One row per wallet movement: a top-up the operator made, or the debit
+    # for a batch of accounts a reseller bought. "Amount" is signed (credit
+    # positive, purchase negative) and "BalanceAfter" snapshots the running
+    # balance, so the wallet's history reads like a bank statement and any
+    # disagreement is visible at a glance.
+    """
+    CREATE TABLE IF NOT EXISTS "WalletTx" (
+        "WalletTxID"   INTEGER PRIMARY KEY AUTOINCREMENT,
+        "UserID"       INTEGER NOT NULL REFERENCES "PanelUser"("UserID"),
+        "Amount"       REAL    NOT NULL,
+        "BalanceAfter" REAL    NOT NULL,
+        "Note"         TEXT    NOT NULL DEFAULT '',
+        "CreatedBy"    TEXT    NOT NULL DEFAULT '',
+        "CreatedDate"  TEXT    NOT NULL
     )
     """,
     # --- traffic samples (append-only) ----------------------------------------
@@ -424,6 +443,16 @@ def migrate(conn) -> None:
             conn.execute('ALTER TABLE "Sale" ADD COLUMN "Discount" REAL NOT NULL DEFAULT 0')
         if not has_column("Sale", "CouponCode"):
             conn.execute("ALTER TABLE \"Sale\" ADD COLUMN \"CouponCode\" TEXT NOT NULL DEFAULT ''")
+
+    # 1g. Panel accounts learned roles and reseller rates: existing accounts
+    #     are admins (they always were); resellers are created from the panel
+    #     with their own rate (percent of the list price they pay). The
+    #     wallet history is the new "WalletTx" table in the main list.
+    if table_exists("PanelUser"):
+        if not has_column("PanelUser", "Role"):
+            conn.execute("ALTER TABLE \"PanelUser\" ADD COLUMN \"Role\" TEXT NOT NULL DEFAULT 'admin'")
+        if not has_column("PanelUser", "Rate"):
+            conn.execute('ALTER TABLE "PanelUser" ADD COLUMN "Rate" REAL NOT NULL DEFAULT 100')
 
     # 2. The sample tables are disposable time series; the old shape carried a
     #    ServerID column. Recreate rather than alter.

@@ -21,6 +21,8 @@ import {
   IconSettings,
   IconSignOut,
   IconSun,
+  IconSwap,
+  IconTable,
   IconTag,
   IconTerminal,
   IconUsers,
@@ -76,19 +78,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 /* ── the desktop sidebar ────────────────────────────────────────────────── */
 
 /** Nav destinations; the labels go through t() so they follow the language. */
-const DESTINATIONS = (t: (key: string) => string) => [
+const DESTINATIONS = (t: (key: string) => string, role: string) =>
+  role === "reseller"
+    ? [{ to: "/reseller", label: t("Reseller desk"), icon: <IconSwap size={19} />, match: () => true }]
+    : [
   { to: "/sales", label: t("Subscription sales"), icon: <IconTag size={19} />, match: (p: string) => p === "sales" },
   { to: "/expirations", label: t("Upcoming expirations"), icon: <IconClock size={19} />, match: (p: string) => p === "expirations" },
   { to: "/telegram", label: t("Telegram bot"), icon: <IconBolt size={19} />, match: (p: string) => p === "telegram" },
+  { to: "/resellers", label: t("Resellers"), icon: <IconTable size={19} />, match: (p: string) => p === "resellers" },
   { to: "/users", label: t("Users"), icon: <IconUsers size={19} /> , match: (p: string) => p === "users" },
   { to: "/connections", label: t("Connections"), icon: <IconPulse size={19} />, match: (p: string) => p === "connections" },
   { to: "/logs", label: t("Logs"), icon: <IconLogs size={19} />, match: (p: string) => p === "logs" },
   { to: "/console", label: t("API console"), icon: <IconTerminal size={19} />, match: (p: string) => p === "console" },
   { to: "/settings", label: t("Settings"), icon: <IconSettings size={19} />, match: (p: string) => p === "settings" },
-];
+    ];
 
 function Side({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const { user, logout } = useAuth();
+  const { user, role, logout } = useAuth();
   const { hubs } = useServer();
   const t = useT();
   const route = useRoute();
@@ -176,7 +182,7 @@ function Side({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => voi
           </Link>
         )}
 
-        {DESTINATIONS(t).map((d) => item(d.to, d.label, d.icon, d.match(active)))}
+        {DESTINATIONS(t, role).map((d) => item(d.to, d.label, d.icon, d.match(active)))}
       </nav>
 
       <div className="side__foot">
@@ -260,6 +266,7 @@ function TopBar() {
   else if (p[0] === "sales") title = t("Subscription sales");
   else if (p[0] === "expirations") title = t("Upcoming expirations");
   else if (p[0] === "telegram") title = t("Telegram bot");
+  else if (p[0] === "resellers" || p[0] === "reseller") title = t("Reseller desk");
   else if (p[0] === "settings") title = t("Settings");
   else if (p[0] === "connect") title = t("Connect");
   else if (p[0] === "server-settings") title = t("Server settings");
@@ -290,6 +297,7 @@ function TopBar() {
 function TabBar() {
   const t = useT();
   const route = useRoute();
+  const { role } = useAuth();
   const active = route.parts[0] ?? "";
   const tab = (match: (p: string) => boolean, to: string, label: string, icon: React.ReactNode) => (
     <Link to={to} className="tab" aria-current={match(active) ? "page" : undefined}>
@@ -297,6 +305,13 @@ function TabBar() {
       <span>{label}</span>
     </Link>
   );
+  if (role === "reseller") {
+    return (
+      <nav className="tabbar" aria-label={t("Primary")}>
+        {tab(() => true, "/reseller", t("Reseller desk"), <IconSwap />)}
+      </nav>
+    );
+  }
   return (
     <nav className="tabbar" aria-label={t("Primary")}>
       {tab((p) => p === "" || p === "hub" || p === "connect", "/", t("Dashboard"), <IconPanels />)}

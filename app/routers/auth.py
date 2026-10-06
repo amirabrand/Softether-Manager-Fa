@@ -31,7 +31,8 @@ def _account_count() -> int:
     return int(row["n"]) if row else 0
 
 
-def _issue(request: Request, response: Response, user_id: int, username: str) -> dict[str, Any]:
+def _issue(request: Request, response: Response, user_id: int, username: str,
+           role: str = "admin") -> dict[str, Any]:
     token = make_token(user_id, username, settings.session_expire_minutes)
     # A session issued over HTTPS is marked Secure, so a browser never sends
     # it back over the plain-HTTP port; one issued over plain HTTP cannot be,
@@ -45,7 +46,7 @@ def _issue(request: Request, response: Response, user_id: int, username: str) ->
         samesite="lax",
         path="/",
     )
-    return {"token": token, "username": username}
+    return {"token": token, "username": username, "role": role}
 
 
 @router.get("/state")
@@ -73,7 +74,7 @@ def setup(body: Credentials, request: Request, response: Response) -> dict[str, 
             status_code=409, detail="An account already exists on this panel."
         ) from None
     record({"UserID": user_id, "Username": body.username}, "auth.setup", "panel_user", body.username)
-    return _issue(request, response, user_id, body.username)
+    return _issue(request, response, user_id, body.username, "admin")
 
 
 @router.post("/login")
@@ -85,7 +86,8 @@ def login(body: Credentials, request: Request, response: Response) -> dict[str, 
     if user is None or not verify_password(body.password, user["PasswordHash"]):
         # One answer for both a wrong name and a wrong password.
         raise HTTPException(status_code=401, detail="Wrong username or password.")
-    return _issue(request, response, int(user["UserID"]), user["Username"])
+    return _issue(request, response, int(user["UserID"]), user["Username"],
+                  str(user["Role"] or "admin"))
 
 
 @router.post("/logout")
@@ -96,7 +98,7 @@ def logout(response: Response) -> dict[str, Any]:
 
 @router.get("/me")
 def me(user: dict[str, Any] = CurrentUser) -> dict[str, Any]:
-    return {"username": user["Username"]}
+    return {"username": user["Username"], "role": user["Role"]}
 
 
 @router.put("/password")

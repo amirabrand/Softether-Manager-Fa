@@ -5,6 +5,8 @@ import { api, clearToken, getToken, setToken } from "./api";
 
 interface AuthState {
   user: string | null;
+  /** "admin" (the operator) or "reseller" (the reseller desk). */
+  role: string;
   loading: boolean;
   /** No account exists yet: the sign-in screen offers to create the first one. */
   needsSetup: boolean;
@@ -17,6 +19,7 @@ const AuthContext = createContext<AuthState>(null as unknown as AuthState);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<string | null>(null);
+  const [role, setRole] = useState<string>("admin");
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
 
@@ -28,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const me = await api.me();
           if (active) {
             setUser(me.username);
+            setRole(me.role ?? "admin");
             setLoading(false);
           }
           return;
@@ -45,7 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })();
 
-    const onUnauth = () => setUser(null);
+    const onUnauth = () => {
+      setUser(null);
+      setRole("admin");
+    };
     window.addEventListener("sem-unauthorized", onUnauth);
     return () => {
       active = false;
@@ -53,9 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const adopt = useCallback((token: { token: string; username: string }) => {
+  const adopt = useCallback((token: { token: string; username: string; role?: string }) => {
     setToken(token.token);
     setUser(token.username);
+    setRole(token.role ?? "admin");
     setNeedsSetup(false);
   }, []);
 
@@ -66,10 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void api.logout().catch(() => {});
     clearToken();
     setUser(null);
+    setRole("admin");
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, needsSetup, login, setup, logout }}>
+    <AuthContext.Provider value={{ user, role, loading, needsSetup, login, setup, logout }}>
       {children}
     </AuthContext.Provider>
   );

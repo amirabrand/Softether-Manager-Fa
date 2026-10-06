@@ -24,6 +24,8 @@ import { Settings } from "./screens/Settings";
 import { Sales } from "./screens/Sales";
 import { Expirations } from "./screens/Expirations";
 import { TelegramBot } from "./screens/TelegramBot";
+import { Reseller } from "./screens/Reseller";
+import { Resellers } from "./screens/Resellers";
 
 export default function App() {
   return (
@@ -64,13 +66,27 @@ export default function App() {
  *   /settings[/:section]      the panel itself
  */
 function Routed() {
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const route = useRoute();
 
   if (loading) return <div className="loading" />;
   if (!user) return <Login />;
 
   const p = route.parts;
+
+  // A reseller sign-in sees exactly one screen: its own desk. The API gate
+  // already refuses everything else; the UI never offers it either.
+  if (role === "reseller") {
+    return (
+      <>
+        <AppShell>
+          <Reseller />
+        </AppShell>
+        <UpdateDialog />
+      </>
+    );
+  }
+
   let screen: React.ReactNode = <Dashboard />;
 
   if (p[0] === "connect") {
@@ -89,6 +105,8 @@ function Routed() {
     screen = <Expirations />;
   } else if (p[0] === "telegram") {
     screen = <TelegramBot />;
+  } else if (p[0] === "resellers") {
+    screen = <Resellers />;
   } else if (p[0] === "logs") {
     screen = <Logs />;
   } else if (p[0] === "console") {
