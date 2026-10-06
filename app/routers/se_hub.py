@@ -7,11 +7,12 @@ bodies are wire-format JSON (see :mod:`app.routers.se_server` for why).
 from __future__ import annotations
 
 import base64
+import calendar
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..audit import record
 from ..db import get_db
@@ -205,6 +206,57 @@ def delete_user(hub: str, name: str, user: dict = CurrentUser) -> Wire:
     forget_user(hub, name)
     record(user, "user.deleted", "vpn_user", name, f"hub {hub}")
     return out
+
+
+class RenewIn(BaseModel):
+    months: int = Field(ge=1, le=120)
+
+
+@router.post("/{hub}/users/{name}/renew")
+def renew_user(hub: str, name: str, body: RenewIn, user: dict = CurrentUser) -> Wire:
+    """Extend one user's subscription by whole calendar months, one click.
+
+    The new expiry grows from the later of *now* and the user's current
+    expiry -- renewing an active subscription keeps the days already paid
+    for, renewing an expired one starts fresh from today. The server's own
+    record is round-tripped so nothing the operator set by hand is wiped.
+    """
+    existing = rpc("GetUser", {"HubName_str": hub, "Name_str": name})
+    now = datetime.now()
+    current: Optional[datetime] = None
+    raw = str(existing.get("ExpireTime_dt", ""))
+    if raw:
+        try:
+            current = datetime.fromisoformat(raw.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            current = None
+    # "1970-01-01" is SoftEther's "never expires" sentinel -- it is not a
+    # date to grow from; a renewal of a never-expiring account starts now.
+    base = now
+    if current is not None and current.year > 1970 and current > now:
+        base = current
+    m = base.month - 1 + body.months
+    y = base.year + m // 12
+    mo = m % 12 + 1
+    d = min(base.day, calendar.monthrange(y, mo)[1])
+    new_expire = base.replace(year=y, month=mo, day=d)
+
+    # Round-trip the server's own record so unsent fields are not wiped
+    # (the same care the user sheet takes when editing).
+    body_wire: Wire = {
+        k: v for k, v in existing.items()
+        if not k.startswith(("Recv.", "Send.")) and k != "Auth_Password_str"
+    }
+    body_wire["ExpireTime_dt"] = new_expire.isoformat()
+    rpc("SetUser", {**body_wire, "HubName_str": hub, "Name_str": name})
+    record(user, "user.renewed", "vpn_user", name,
+           f"hub {hub} +{body.months}m -> {new_expire.date().isoformat()}")
+    return {
+        "HubName_str": hub,
+        "Name_str": name,
+        "Months_u32": body.months,
+        "ExpireTime_dt": new_expire.isoformat(),
+    }
 
 
 class VpnFileIn(BaseModel):

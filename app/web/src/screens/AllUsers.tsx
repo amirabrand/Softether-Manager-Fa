@@ -21,10 +21,12 @@ import {
 } from "../components/QuotaCard";
 import { UserSheet } from "../components/UserSheet";
 import { VpnFileSheet } from "../components/VpnFileSheet";
+import { RenewMenu } from "../components/RenewMenu";
 import { api, type Wire } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { navigate, seg } from "../lib/router";
 import { AUTH_TYPES, isNever, userBytes, userSortValue } from "../lib/se";
+import { durationOfGroup } from "../lib/duration";
 import { formatBytes, formatCount, formatDate, timeAgo } from "../lib/util";
 import { IconChevron, IconDownload, IconPlus } from "../ui/Icon";
 import { UserStatePill } from "./hub/HubUsers";
@@ -176,6 +178,13 @@ export function AllUsers() {
                             >
                               <IconDownload size={14} />
                             </button>
+                            <span onClick={(e) => e.stopPropagation()}>
+                              <RenewMenu
+                                hub={String(u.HubName_str)}
+                                name={String(u.Name_str)}
+                                months={durationOfGroup(String(u.GroupName_str || ""))?.months ?? null}
+                              />
+                            </span>
                             <span className="pcard__go"><IconChevron size={15} /></span>
                           </td>
                         </tr>

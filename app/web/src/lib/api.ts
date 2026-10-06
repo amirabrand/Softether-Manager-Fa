@@ -422,6 +422,23 @@ export const api = {
   deleteGroup: (hub: string, name: string) =>
     request("DELETE", `${hubPath(hub)}/groups/${encodeURIComponent(name)}`),
 
+  // -- subscription sales ---------------------------------------------------------------
+  sell: (hub: string, body: Wire) => request("POST", `${hubPath(hub)}/sales`, body),
+  sales: (limit = 100) => request("GET", `/sales?limit=${limit}`),
+  renew: (hub: string, name: string, months: number) =>
+    request<{ HubName_str: string; Name_str: string; Months_u32: number; ExpireTime_dt: string }>(
+      "POST",
+      `${hubPath(hub)}/users/${encodeURIComponent(name)}/renew`,
+      { months },
+    ),
+  expirations: (days = 30) =>
+    request<{
+      Expirations: { hub: string; name: string; realname: string; group: string; expire: string; days_left: number; status: string }[];
+      Count_u32: number;
+      Expired_u32: number;
+      Critical_u32: number;
+    }>("GET", `/expirations?days=${days}`),
+
   // -- sessions ---------------------------------------------------------------------------
   sessions: (hub: string) => request("GET", `${hubPath(hub)}/sessions`),
   sessionStatus: (hub: string, name: string) =>

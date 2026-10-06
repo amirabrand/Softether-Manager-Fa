@@ -82,6 +82,12 @@ DEFAULTS: dict[str, Any] = {
     # cannot be reached by IP address. Requests from the machine itself and
     # the certificate validation path are always let through.
     "domain_only": None,
+    # --- subscription sales ---------------------------------------------------
+    # Prices per duration group (the presets in the frontend's duration.ts),
+    # keyed by the fixed group name, plus the currency the prices are in.
+    # Both are edited from the Sales page, not the Settings page.
+    "sale_pricing": None,
+    "sale_currency": None,
 }
 
 
@@ -117,6 +123,15 @@ def _seed(key: str) -> Any:
         "acme_email": "",
         "acme_staging": False,
         "domain_only": False,
+        "sale_pricing": {
+            "1month": 150000,
+            "2months": 280000,
+            "3months": 400000,
+            "6months": 750000,
+            "9months": 1050000,
+            "1year": 1300000,
+        },
+        "sale_currency": "تومان",
     }[key]
 
 

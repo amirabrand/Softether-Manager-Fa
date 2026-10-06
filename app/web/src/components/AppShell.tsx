@@ -11,6 +11,7 @@ import {
   IconBack,
   IconCheck,
   IconChevron,
+  IconClock,
   IconHub,
   IconLogs,
   IconMoon,
@@ -19,6 +20,7 @@ import {
   IconSettings,
   IconSignOut,
   IconSun,
+  IconTag,
   IconTerminal,
   IconUsers,
 } from "../ui/Icon";
@@ -74,6 +76,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 /** Nav destinations; the labels go through t() so they follow the language. */
 const DESTINATIONS = (t: (key: string) => string) => [
+  { to: "/sales", label: t("Subscription sales"), icon: <IconTag size={19} />, match: (p: string) => p === "sales" },
+  { to: "/expirations", label: t("Upcoming expirations"), icon: <IconClock size={19} />, match: (p: string) => p === "expirations" },
   { to: "/users", label: t("Users"), icon: <IconUsers size={19} /> , match: (p: string) => p === "users" },
   { to: "/connections", label: t("Connections"), icon: <IconPulse size={19} />, match: (p: string) => p === "connections" },
   { to: "/logs", label: t("Logs"), icon: <IconLogs size={19} />, match: (p: string) => p === "logs" },
@@ -251,6 +255,8 @@ function TopBar() {
   const isPushed = p.length > 0 && !(p[0] === "settings" && p.length === 1) && p[0] !== "users";
   let title = t("Dashboard");
   if (p[0] === "users") title = t("Users");
+  else if (p[0] === "sales") title = t("Subscription sales");
+  else if (p[0] === "expirations") title = t("Upcoming expirations");
   else if (p[0] === "settings") title = t("Settings");
   else if (p[0] === "connect") title = t("Connect");
   else if (p[0] === "server-settings") title = t("Server settings");

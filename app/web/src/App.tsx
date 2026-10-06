@@ -21,6 +21,8 @@ import { Console } from "./screens/Console";
 import { HubDetail } from "./screens/HubDetail";
 import { UserDetail } from "./screens/UserDetail";
 import { Settings } from "./screens/Settings";
+import { Sales } from "./screens/Sales";
+import { Expirations } from "./screens/Expirations";
 
 export default function App() {
   return (
@@ -54,6 +56,8 @@ export default function App() {
  *   /hub/:hub/user/:name      one user
  *   /server-settings[/:sec]   server-wide SoftEther settings
  *   /connections              TCP connections into the server
+ *   /sales                    subscription sales: till + price list + ledger
+ *   /expirations              subscriptions ending soonest first
  *   /logs                     log browser
  *   /console                  raw RPC console
  *   /settings[/:section]      the panel itself
@@ -78,6 +82,10 @@ function Routed() {
     screen = <ServerSettings section={p[1]} />;
   } else if (p[0] === "connections") {
     screen = <Connections />;
+  } else if (p[0] === "sales") {
+    screen = <Sales />;
+  } else if (p[0] === "expirations") {
+    screen = <Expirations />;
   } else if (p[0] === "logs") {
     screen = <Logs />;
   } else if (p[0] === "console") {

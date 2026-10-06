@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from . import hostguard
 from .config import APP_ROOT, settings
 from .db import get_db
-from .routers import auth, connection, quota, se_hub, se_rpc, se_server, system, users
+from .routers import auth, connection, quota, sales, se_hub, se_rpc, se_server, system, users
 from .services import sampler
 from .services import tls
 from .services.resources import sampler as resource_sampler
@@ -80,6 +80,7 @@ def _build_core() -> FastAPI:
         users.router,
         quota.router,
         se_rpc.router,
+    sales.router,
     ):
         app.include_router(router, prefix="/api/v1")
 

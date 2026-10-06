@@ -159,6 +159,26 @@ TABLES: list[str] = [
         UNIQUE ("SubjectType", "HubName", "UserKey")
     )
     """,
+    # --- subscription sales --------------------------------------------------
+    # One row per subscription sold through the panel: what was sold (a
+    # duration group and its months), for how much, and to whom. The VPN
+    # user itself lives on SoftEther; this is the panel's own ledger.
+    """
+    CREATE TABLE IF NOT EXISTS "Sale" (
+        "SaleID"      INTEGER PRIMARY KEY AUTOINCREMENT,
+        "HubName"     TEXT    NOT NULL,
+        "UserName"     TEXT    NOT NULL,
+        "GroupName"    TEXT    NOT NULL DEFAULT '',
+        "Months"       INTEGER NOT NULL DEFAULT 0,
+        "Price"        REAL    NOT NULL DEFAULT 0,
+        "Currency"     TEXT    NOT NULL DEFAULT '',
+        "BuyerName"    TEXT    NOT NULL DEFAULT '',
+        "Note"         TEXT    NOT NULL DEFAULT '',
+        "CreatedDate"  TEXT    NOT NULL,
+        "CreatedBy"    TEXT    NOT NULL DEFAULT '',
+        "IsDeleted"    INTEGER NOT NULL DEFAULT 0
+    )
+    """,
     # --- panel settings and audit ---------------------------------------------
     """
     CREATE TABLE IF NOT EXISTS "Setting" (
@@ -202,6 +222,7 @@ INDEXES: list[str] = [
     'ON "VpnSessionTrafficSample"("SampledDate")',
     'CREATE INDEX IF NOT EXISTS "IX_TrafficQuota_Hub" '
     'ON "TrafficQuota"("HubName", "SubjectType")',
+    'CREATE INDEX IF NOT EXISTS "IX_Sale_Date" ON "Sale"("CreatedDate")',
 ]
 
 SEEDS: list[tuple[str, list[dict]]] = []

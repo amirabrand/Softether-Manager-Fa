@@ -123,6 +123,18 @@ def result_for(method: str, params: dict) -> dict:
         return params
     if method == "EnumUser":
         return {"UserList": USERS, "NumUsers_u32": len(USERS)}
+    if method == "GetUser":
+        for u in USERS:
+            if u["Name_str"].lower() == str(params.get("Name_str", "")).lower():
+                return dict(u)
+        return {}
+    if method == "SetUser":
+        for i, u in enumerate(USERS):
+            if u["Name_str"].lower() == str(params.get("Name_str", "")).lower():
+                USERS[i] = {**u, **{k: v for k, v in params.items()
+                                    if not k.startswith("HubName")}}
+                return params
+        return params
     if method == "CreateUser":
         USERS.append({
             "Name_str": params.get("Name_str", ""),

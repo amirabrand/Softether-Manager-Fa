@@ -347,6 +347,23 @@ export const IconUpload = (p: P) => (
   </S>
 );
 
+/** Price tag — subscription sales. */
+export const IconTag = (p: P) => (
+  <S {...p}>
+    <path d="M3.5 10.5v-6a1 1 0 0 1 1-1h6L20.5 13.5a1.4 1.4 0 0 1 0 2l-5 5a1.4 1.4 0 0 1-2 0L3.5 10.5Z" />
+    <circle cx="8" cy="8" r="1.6" />
+  </S>
+);
+
+/** Alarm clock — upcoming expirations. */
+export const IconClock = (p: P) => (
+  <S {...p}>
+    <circle cx="12" cy="13" r="7.5" />
+    <path d="M12 9.5V13l2.5 2.5" />
+    <path d="M5 3.5 2.5 5.8M19 3.5l2.5 2.3" />
+  </S>
+);
+
 /** Globe — DDNS, listeners, the network at large. */
 export const IconGlobe = (p: P) => (
   <S {...p}>

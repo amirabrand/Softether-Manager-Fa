@@ -1216,3 +1216,145 @@
 .chip:active {
   transform: translateY(1px);
 }
+
+/* ── Subscription sales (Sales page) ─────────────────────────────────────── */
+.pill--bad {
+  --tint: var(--err-soft);
+  --fg: var(--err);
+}
+.chip--on {
+  background: var(--brand-soft, rgba(96, 165, 250, 0.18));
+  color: var(--brand, var(--text));
+}
+.sales-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr);
+  gap: var(--s4);
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .sales-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s3);
+}
+@media (max-width: 640px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+.pricelist {
+  display: grid;
+  gap: var(--s3);
+}
+.pricerow {
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  align-items: center;
+  gap: var(--s3);
+}
+.pricerow__label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+  font-size: var(--t-small);
+}
+.pricerow__label i {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: var(--t-micro);
+}
+.sale-sum {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin-top: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-card);
+  background: var(--well, rgba(127, 127, 127, 0.1));
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+.sale-sum b {
+  color: var(--text);
+}
+.sale-receipt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+.checkline {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  font-size: var(--t-small);
+  color: var(--muted);
+  cursor: pointer;
+}
+.checkline input {
+  margin-top: 2px;
+}
+
+/* ── One-click renewal menu ──────────────────────────────────────────────── */
+.renew {
+  position: relative;
+  display: inline-block;
+}
+.renew__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+  z-index: 30;
+  min-width: 190px;
+  padding: 6px;
+  border-radius: var(--r-card, 14px);
+  background: var(--card, var(--bg));
+  box-shadow: var(--nm-raise, 0 10px 30px rgba(0, 0, 0, 0.18));
+  display: grid;
+  gap: 2px;
+}
+.renew__title {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--muted);
+  padding: 6px 10px 4px;
+}
+.renew__item {
+  appearance: none;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--text);
+  text-align: start;
+  padding: 8px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.renew__item:hover {
+  background: var(--well, rgba(127, 127, 127, 0.12));
+}
+.renew__item--sug {
+  color: var(--brand, var(--text));
+}
+.renew__sug {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--muted);
+}
+.row--static {
+  text-align: start;
+}

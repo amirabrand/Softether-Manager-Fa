@@ -108,6 +108,11 @@ class SettingsIn(BaseModel):
     ui_list_seconds: Optional[int] = Field(default=None, ge=1, le=3600)
     update_check_enabled: Optional[bool] = None
     update_check_interval_hours: Optional[int] = Field(default=None, ge=1, le=168)
+    # Subscription sales: per-group prices (edited on the Sales page) and the
+    # currency string shown next to them. The prices map is validated here so
+    # a malformed PUT cannot smuggle junk into the ledger's arithmetic.
+    sale_pricing: Optional[dict[str, float]] = None
+    sale_currency: Optional[str] = Field(default=None, max_length=24)
 
 
 @router.get("/settings")
@@ -127,6 +132,19 @@ def put_panel_settings(body: SettingsIn, user: dict = CurrentUser) -> dict[str, 
                     detail="The web path may contain only letters, digits, dot, underscore, "
                     "tilde and hyphen.",
                 )
+        if key == "sale_pricing" and value is not None:
+            clean = {}
+            for gname, price in dict(value).items():
+                if not isinstance(gname, str) or len(gname) > 64:
+                    raise HTTPException(status_code=422, detail="Bad sale price key.")
+                try:
+                    p = float(price)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=422, detail=f"Bad price for {gname}.")
+                if p < 0 or p != p:  # negative or NaN
+                    raise HTTPException(status_code=422, detail=f"Bad price for {gname}.")
+                clean[gname] = p
+            value = clean
         set_setting(key, value)
         changed.append(key)
     if changed:
