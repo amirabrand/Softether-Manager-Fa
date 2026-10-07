@@ -226,8 +226,14 @@ export interface DomainIn {
 
 const hubPath = (hub: string) => `/hubs/${encodeURIComponent(hub)}`;
 
+export type Subdomain = { host: string; port: number; note: string; enabled: boolean };
+
 export const api = {
   // -- auth ------------------------------------------------------------------
+  subdomains: () => request<{ items: Subdomain[] }>("GET", "/system/subdomains"),
+  saveSubdomains: (items: Subdomain[]) =>
+    request<{ items: Subdomain[] }>("PUT", "/system/subdomains", { items }),
+  publicSubdomains: () => request<{ items: Subdomain[] }>("GET", "/system/public-subdomains"),
   authState: () => request<{ setup_required: boolean }>("GET", "/auth/state"),
   setup: (username: string, password: string) =>
     request<{ token: string; username: string; role: string }>("POST", "/auth/setup", { username, password }),

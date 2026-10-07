@@ -98,6 +98,10 @@ DEFAULTS: dict[str, Any] = {
     "telegram_pay_note": None,
     "telegram_reminder_days": None,
     "telegram_enabled": None,
+    # Connection subdomains: the public addresses (subdomains) customers
+    # dial. The operator curates the list in Settings; every enabled
+    # entry is offered in the download dialog and to the storefront.
+    "connection_subdomains": None,
     # --- payments ---------------------------------------------------------------
     # The card-to-card facts buyers transfer against (shown in the bot and on
     # the reseller desk), and the operator-side Oxapay crypto gateway: the
@@ -167,6 +171,7 @@ def _seed(key: str) -> Any:
         "telegram_pay_note": "",
         "telegram_reminder_days": "7,3,1",
         "telegram_enabled": True,
+        "connection_subdomains": [],
         "pay_card_number": "",
         "pay_card_holder": "",
         "pay_card_bank": "",

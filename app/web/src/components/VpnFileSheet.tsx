@@ -42,6 +42,7 @@ export function VpnFileSheet({
   const [accountName, setAccountName] = useState("");
   const [filename, setFilename] = useState("");
   const [templates, setTemplates] = useState<{ account: string; file: string } | null>(null);
+  const [subs, setSubs] = useState<{ host: string; port: number; note: string }[]>([]);
   const namesTouched = useRef({ account: false, file: false });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,6 +66,16 @@ export function VpnFileSheet({
     void api
       .ddns()
       .then((r) => setDdnsFqdn(String(r.CurrentFqdn_str || "")))
+      .catch(() => {});
+    void api
+      .publicSubdomains()
+      .then((r) =>
+        setSubs(
+          (r.items as Wire[])
+            .map((i) => ({ host: String(i.host || ""), port: Number(i.port || 1194), note: String(i.note || "") }))
+            .filter((s) => s.host),
+        ),
+      )
       .catch(() => {});
     void api
       .vpnTemplate()
@@ -209,6 +220,29 @@ export function VpnFileSheet({
             ? t("The profile imports into any OpenVPN app — OpenVPN Connect, OpenVPN for Android and the rest — pointed at this server and signed in as")
             : t("The file imports straight into SoftEther VPN Client — one double-click and the connection exists, pointed at this server and signed in as")} <b className="mono">{name}</b>.
         </div>
+        {subs.length > 0 && (
+          <Field label={t("Connection addresses")} hint={t("Pick one to fill the address below.")}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s1)" }}>
+              {subs.map((s) => (
+                <button
+                  key={s.host}
+                  type="button"
+                  className="btn"
+                  style={{ fontFamily: "var(--mono, monospace)" }}
+                  onClick={() => {
+                    setHost(s.host);
+                    const p = s.port || port;
+                    setPort(p);
+                    if (!portChoices.includes(p)) setCustomPort(true);
+                  }}
+                >
+                  {s.host}:{s.port}
+                  {s.note ? ` — ${s.note}` : ""}
+                </button>
+              ))}
+            </div>
+          </Field>
+        )}
         <Field
           label={t("Server address")}
           hint={

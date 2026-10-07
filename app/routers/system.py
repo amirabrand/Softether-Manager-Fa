@@ -1,6 +1,7 @@
 """The panel about itself: health, version, settings, updates, audit."""
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Request
@@ -77,6 +78,65 @@ def put_vpn_template(body: VpnTemplateIn, user: dict = CurrentUser) -> dict[str,
         set_setting("vpn_embed_password_default", body.embed_password_default)
     record(user, "settings.vpn_template_updated", "panel", "", "")
     return _vpn_template_state()
+
+# --- connection subdomains ---------------------------------------------------
+class SubdomainIn(BaseModel):
+    host: str = Field(min_length=1, max_length=253)
+    port: int = Field(default=1194, ge=1, le=65535)
+    note: str = Field(default="", max_length=120)
+    enabled: bool = True
+
+
+class SubdomainsIn(BaseModel):
+    items: list[SubdomainIn] = Field(default_factory=list, max_length=50)
+
+
+_SUBDOMAIN_RE = re.compile(r"^(?=.{1,253}$)[a-z0-9]([a-z0-9._-]*[a-z0-9])?$", re.IGNORECASE)
+
+
+def _normalise_subdomains(items: list[SubdomainIn]) -> list[dict[str, Any]]:
+    """Lower-case, trim, drop duplicates, refuse anything that does not look
+    like a hostname -- the list is stored as one clean shape."""
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in items:
+        host = item.host.strip().lower().rstrip(".")
+        if not _SUBDOMAIN_RE.match(host):
+            raise HTTPException(status_code=422, detail=f"Invalid subdomain: {item.host.strip()}")
+        if host in seen:
+            continue
+        seen.add(host)
+        out.append(
+            {"host": host, "port": int(item.port), "note": item.note.strip(), "enabled": bool(item.enabled)}
+        )
+    return out
+
+
+@router.get("/subdomains")
+def get_subdomains(user: dict = CurrentUser) -> dict[str, Any]:
+    """The saved connection subdomains, edited from the Settings page."""
+    return {"items": get_setting("connection_subdomains")}
+
+
+@router.put("/subdomains")
+def put_subdomains(body: SubdomainsIn, user: dict = CurrentUser) -> dict[str, Any]:
+    items = _normalise_subdomains(body.items)
+    set_setting("connection_subdomains", items)
+    record(user, "settings.subdomains_updated", "panel", "", f"{len(items)} entries")
+    return {"items": items}
+
+
+@router.get("/public-subdomains")
+def public_subdomains() -> dict[str, Any]:
+    """Unauthenticated on purpose: only the enabled addresses -- the kind of
+    information a shop window already shows. Nothing else leaks here."""
+    return {
+        "items": [
+            {"host": i["host"], "port": int(i.get("port") or 1194), "note": str(i.get("note") or "")}
+            for i in get_setting("connection_subdomains")
+            if i.get("enabled", True)
+        ]
+    }
 
 
 @router.get("/info")

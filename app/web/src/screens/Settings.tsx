@@ -52,6 +52,7 @@ export function Settings({ section }: { section?: string }) {
         <DomainCard />
         <MonitoringCard />
         <VpnFileTemplateCard />
+        <SubdomainsCard />
         <UpdatesCard />
         <AuditCard />
         <AboutCard />
@@ -1152,6 +1153,159 @@ function AboutCard() {
         <p className="micro" style={{ marginTop: "var(--s3)" }}>
           {t("SoftEther Manager — a self-hosted panel over the SoftEther VPN Server JSON-RPC API.")}
         </p>
+      </div>
+    </section>
+  );
+}
+
+
+type SubRow = { host: string; port: number; note: string; enabled: boolean };
+
+/** The addresses (subdomains) customers dial. Curated here; every enabled
+ * entry is offered as a one-tap pick in the .vpn download dialog. */
+function SubdomainsCard() {
+  const t = useT();
+  const { push } = useToast();
+  const [rows, setRows] = useState<SubRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const normalise = (items: Wire[]): SubRow[] =>
+    items.map((i) => ({
+      host: String(i.host ?? ""),
+      port: Number(i.port ?? 1194),
+      note: String(i.note ?? ""),
+      enabled: i.enabled !== false,
+    }));
+
+  useEffect(() => {
+    void api
+      .subdomains()
+      .then((r) => setRows(normalise(r.items as Wire[])))
+      .catch((e) => {
+        setRows([]);
+        setError(e instanceof Error ? e.message : String(e));
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const save = async () => {
+    if (!rows) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.saveSubdomains(rows);
+      setRows(normalise(r.items as Wire[]));
+      push("ok", t("Subdomains saved."));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = async (s: SubRow) => {
+    try {
+      await navigator.clipboard.writeText(`${s.host.trim().toLowerCase()}:${s.port}`);
+      push("ok", t("Copied."));
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
+  const edit = (idx: number, patch: Partial<SubRow>) =>
+    setRows((rows ?? []).map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+
+  return (
+    <section id="s-subdomains">
+      <SectionTitle>{t("Connection subdomains")}</SectionTitle>
+      <div className="card" style={{ padding: "var(--s4)", maxWidth: 760 }}>
+        <p className="hint" style={{ marginTop: 0 }}>
+          {t("The addresses customers dial — shown in the download dialog, ready to copy for customers.")}
+        </p>
+        {error && <ErrorAlert>{error}</ErrorAlert>}
+        {rows === null ? (
+          <LoadingBlock />
+        ) : rows.length === 0 ? (
+          <p className="hint">{t("No subdomains yet — add the addresses you hand to customers.")}</p>
+        ) : (
+          <div style={{ display: "grid", gap: "var(--s2)" }}>
+            {rows.map((s, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1.4fr 90px 1.2fr auto auto",
+                  gap: "var(--s2)",
+                  alignItems: "center",
+                }}
+              >
+                <input
+                  className="input mono"
+                  value={s.host}
+                  placeholder={t("e.g. vpn1.example.com")}
+                  onChange={(e) => edit(idx, { host: e.target.value })}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  inputMode="url"
+                />
+                <input
+                  className="input mono"
+                  type="number"
+                  min={1}
+                  max={65535}
+                  value={s.port}
+                  onChange={(e) => edit(idx, { port: Number(e.target.value) })}
+                  inputMode="numeric"
+                />
+                <input
+                  className="input"
+                  value={s.note}
+                  placeholder={t("Note (optional)")}
+                  onChange={(e) => edit(idx, { note: e.target.value })}
+                />
+                <label style={{ display: "flex", gap: 6, alignItems: "center", whiteSpace: "nowrap" }}>
+                  <input
+                    type="checkbox"
+                    checked={s.enabled}
+                    onChange={(e) => edit(idx, { enabled: e.target.checked })}
+                  />
+                  {t("Enabled")}
+                </label>
+                <button className="btn" type="button" onClick={() => setRows((rows ?? []).filter((_, i) => i !== idx))}>
+                  {t("Delete")}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: "var(--s2)", marginTop: "var(--s3)" }}>
+          <button className="btn" type="button" onClick={() => setRows([...(rows ?? []), { host: "", port: 1194, note: "", enabled: true }])}>
+            {t("Add subdomain")}
+          </button>
+          <button className="btn btn--primary" type="button" onClick={save} disabled={busy || rows === null}>
+            {busy ? <span className="spin" /> : null} {t("Save subdomains")}
+          </button>
+        </div>
+        {rows && rows.some((s) => s.enabled && s.host.trim()) && (
+          <div style={{ marginTop: "var(--s4)" }}>
+            <div className="section__t" style={{ marginBottom: "var(--s2)" }}>{t("Connection addresses")}</div>
+            <div style={{ display: "grid", gap: "var(--s1)" }}>
+              {rows
+                .filter((s) => s.enabled && s.host.trim())
+                .map((s) => (
+                  <div key={s.host} style={{ display: "flex", gap: "var(--s2)", alignItems: "center", flexWrap: "wrap" }}>
+                    <span className="mono">{s.host.trim().toLowerCase()}:{s.port}</span>
+                    {s.note && <span className="hint" style={{ margin: 0 }}>{s.note}</span>}
+                    <button className="btn" type="button" onClick={() => void copy(s)}>
+                      {t("Copy")}
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

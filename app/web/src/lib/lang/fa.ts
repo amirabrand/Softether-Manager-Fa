@@ -1577,4 +1577,18 @@ export const fa: Record<string, string> = {
   "Gateway currency is a short code like USDT.": "ارز درگاه یک کد کوتاه مثل USDT است.",
   "Unknown payment status.": "وضعیت پرداخت ناشناخته است.",
   "Unknown payment kind.": "نوع پرداخت ناشناخته است.",
+
+  /* ── ساب‌دامین‌های اتصال ─────────────────────────────────────────── */
+  "Connection subdomains": "ساب‌دامین‌های اتصال",
+  "The addresses customers dial — shown in the download dialog, ready to copy for customers.": "آدرس‌هایی که مشتری‌ها با آن‌ها وصل می‌شوند — در پنجرهٔ دانلود نمایش داده می‌شوند و آمادهٔ کپی‌کردن برای مشتری هستند.",
+  "No subdomains yet — add the addresses you hand to customers.": "هنوز ساب‌دامینی نیست — آدرس‌هایی که به مشتری می‌دهید را اضافه کنید.",
+  "Add subdomain": "افزودن ساب‌دامین",
+  "Save subdomains": "ذخیرهٔ ساب‌دامین‌ها",
+  "Subdomains saved.": "ساب‌دامین‌ها ذخیره شد.",
+  "e.g. vpn1.example.com": "مثلاً vpn1.example.com",
+  "Note (optional)": "یادداشت (اختیاری)",
+  "Copy": "کپی",
+  "Copied.": "کپی شد.",
+  "Connection addresses": "آدرس‌های اتصال",
+  "Pick one to fill the address below.": "یکی را انتخاب کنید تا در آدرس زیر بنشیند.",
 };
