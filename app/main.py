@@ -98,10 +98,12 @@ def _build_core() -> FastAPI:
 
     # The customer portal is a hash route of the one-page app. A plain
     # /portal typed into an address bar (a poster, a support reply) lands on
-    # the same screen instead of the export's 404 page.
+    # the same screen instead of the export's 404 page. The target is an
+    # ABSOLUTE path plus fragment on purpose: a bare "#/portal" would resolve
+    # against /portal itself and bounce the browser into a redirect loop.
     @app.get("/portal", include_in_schema=False)
     def _portal_entry() -> RedirectResponse:
-        return RedirectResponse("#/portal", status_code=307)
+        return RedirectResponse("/#/portal", status_code=307)
 
     if WEB_DIST.is_dir():
         app.mount("/", _Frontend(directory=str(WEB_DIST), html=True), name="web")
