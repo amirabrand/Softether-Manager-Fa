@@ -962,3 +962,74 @@
 .qcell .pill {
   justify-self: start;
 }
+
+/* ── پورتال کاربران ────────────────────────────────────────────────────────
+   The customer portal: one narrow column, phone-first. Reuses plate/field/
+   pill; the specifics here are the head, the three-card row and the usage
+   bar. RTL mirrors fall out of the logical properties like everywhere else. */
+.portal {
+  max-width: 640px;
+  margin-inline: auto;
+  padding: var(--s4) var(--s3) 96px;
+  display: grid;
+  gap: var(--s3);
+}
+.portal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+.portal__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.portal__status {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+.portal__grid {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.portal__card {
+  display: grid;
+  gap: var(--s2);
+  align-content: start;
+  padding: var(--s3);
+}
+.portal__big {
+  font-size: var(--t-page);
+  font-weight: 700;
+}
+.portal__mid {
+  font-size: var(--t-section);
+  font-weight: 600;
+}
+.portal__bar {
+  height: 8px;
+  border-radius: 99px;
+  background: rgb(127 127 127 / 0.22);
+  overflow: hidden;
+}
+.portal__bar-f {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+.portal--over {
+  background: var(--err);
+}
+.portal--warn {
+  color: var(--warn);
+}
+.portal__btns {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}

@@ -28,6 +28,11 @@ def require_user(request: Request) -> dict[str, Any]:
     claims = read_token(token) if token else None
     if not claims:
         raise HTTPException(status_code=401, detail="Not signed in.")
+    if claims.get("scope") == "portal":
+        # A customer-portal session is not a panel session, whatever else it
+        # claims. (Its uid is outside the PanelUser space anyway; this is the
+        # explicit belt to that brace.)
+        raise HTTPException(status_code=401, detail="Not signed in.")
     user = get_db().query_one(
         'SELECT "UserID", "Username", "Role" FROM "PanelUser" '
         'WHERE "UserID" = :id AND "IsDeleted" = 0',

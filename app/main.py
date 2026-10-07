@@ -23,13 +23,13 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import hostguard
 from .config import APP_ROOT, settings
 from .db import get_db
-from .routers import auth, connection, quota, resellers, sales, se_hub, se_rpc, se_server, system, telegram, users
+from .routers import auth, connection, portal, quota, resellers, sales, se_hub, se_rpc, se_server, system, telegram, users
 from .routers import payments as payments_router
 from .services import sampler
 from .services import tls
@@ -92,8 +92,16 @@ def _build_core() -> FastAPI:
     resellers.admin_router,
     payments_router.self_router,
     payments_router.admin_router,
+    portal.router,
     ):
         app.include_router(router, prefix="/api/v1")
+
+    # The customer portal is a hash route of the one-page app. A plain
+    # /portal typed into an address bar (a poster, a support reply) lands on
+    # the same screen instead of the export's 404 page.
+    @app.get("/portal", include_in_schema=False)
+    def _portal_entry() -> RedirectResponse:
+        return RedirectResponse("#/portal", status_code=307)
 
     if WEB_DIST.is_dir():
         app.mount("/", _Frontend(directory=str(WEB_DIST), html=True), name="web")

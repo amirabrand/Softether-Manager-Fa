@@ -1594,4 +1594,27 @@ export const fa: Record<string, string> = {
   "Copied.": "کپی شد.",
   "Connection addresses": "آدرس‌های اتصال",
   "Pick one to fill the address below.": "یکی را انتخاب کنید تا در آدرس زیر بنشیند.",
+
+  /* ── پورتال کاربران (customer portal) ────────────────────────────────── */
+  "Customer portal": "پورتال کاربران",
+  "Sign in to your VPN account": "برای مشاهده‌ی حساب VPN خود وارد شوید",
+  "Session ended. Sign in again.": "نشست تمام شد. دوباره وارد شوید.",
+  "Wrong username or password.": "نام کاربری یا رمز اشتباه است.",
+  "Too many attempts. Wait a few minutes and try again.":
+    "تلاش‌های بیش از حد. چند دقیقه بعد دوباره امتحان کنید.",
+  "The portal is turned off.": "پورتال غیرفعال است.",
+  "Offline": "آفلاین",
+  "Blocked by traffic limit": "به‌دلیل سقف ترافیک مسدود شده",
+  "Expired": "منقضی شده",
+  "Expiry": "تاریخ انقضا",
+  "Never expires": "بدون محدودیت زمانی",
+  "Traffic usage": "مصرف ترافیک",
+  "No traffic limit set": "سقف ترافیکی ثبت نشده",
+  "Connection files": "فایل‌های اتصال",
+  "Download OpenVPN profile (.ovpn)": "دانلود پروفایل OpenVPN‏ (ovpn.)",
+  "Download SoftEther file (.vpn)": "دانلود فایل SoftEther‏ (vpn.)",
+  "On first connect the client asks for this username and password.":
+    "در اولین اتصال، کلاینت همین نام کاربری و رمز را می‌پرسد.",
+  "Tap an address to copy it": "برای کپی، روی آدرس بزنید",
+  "Open Telegram bot (buy & renew)": "ربات تلگرام (خرید و تمدید)",
 };

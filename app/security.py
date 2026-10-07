@@ -72,11 +72,20 @@ def _sign(payload: bytes) -> str:
     return _b64encode(mac)
 
 
-def make_token(user_id: int, username: str, expire_minutes: int) -> str:
-    payload = json.dumps(
-        {"uid": user_id, "sub": username, "exp": int(time.time()) + expire_minutes * 60},
-        separators=(",", ":"),
-    ).encode("utf-8")
+def make_token(
+    user_id: int, username: str, expire_minutes: int, extra: dict[str, Any] | None = None
+) -> str:
+    """One signed claim set. ``extra`` adds claims (e.g. the customer
+    portal's ``scope``); the panel's own tokens carry none, and stay
+    byte-identical to what they always were."""
+    claims: dict[str, Any] = {
+        "uid": user_id,
+        "sub": username,
+        "exp": int(time.time()) + expire_minutes * 60,
+    }
+    if extra:
+        claims.update(extra)
+    payload = json.dumps(claims, separators=(",", ":")).encode("utf-8")
     body = _b64encode(payload)
     return f"{body}.{_sign(payload)}"
 

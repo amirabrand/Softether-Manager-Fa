@@ -27,6 +27,7 @@ import { TelegramBot } from "./screens/TelegramBot";
 import { Reseller } from "./screens/Reseller";
 import { Resellers } from "./screens/Resellers";
 import { Payments } from "./screens/Payments";
+import { UserPortal } from "./screens/UserPortal";
 
 export default function App() {
   return (
@@ -72,6 +73,12 @@ export default function App() {
 function Routed() {
   const { user, role, loading } = useAuth();
   const route = useRoute();
+
+  const p0 = route.parts[0];
+  // The customer portal is its own little world: it never touches the panel
+  // session, its screen ships outside the admin shell, and a signed-in
+  // operator hitting /#/portal sees exactly what a customer sees.
+  if (p0 === "portal") return <UserPortal />;
 
   if (loading) return <div className="loading" />;
   if (!user) return <Login />;

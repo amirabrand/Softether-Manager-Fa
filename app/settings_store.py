@@ -102,6 +102,12 @@ DEFAULTS: dict[str, Any] = {
     # dial. The operator curates the list in Settings; every enabled
     # entry is offered in the download dialog and to the storefront.
     "connection_subdomains": None,
+    # --- the customer web portal ------------------------------------------------
+    # /#/portal: VPN users sign in with their own VPN credentials and see
+    # their status, usage and connection files. On by default; the hub it
+    # authenticates against is the shop's main one.
+    "user_portal_enabled": True,
+    "portal_hub": "DEFAULT",
     # --- payments ---------------------------------------------------------------
     # The card-to-card facts buyers transfer against (shown in the bot and on
     # the reseller desk), and the operator-side Oxapay crypto gateway: the
@@ -172,6 +178,8 @@ def _seed(key: str) -> Any:
         "telegram_reminder_days": "7,3,1",
         "telegram_enabled": True,
         "connection_subdomains": [],
+        "user_portal_enabled": True,
+        "portal_hub": "DEFAULT",
         "pay_card_number": "",
         "pay_card_holder": "",
         "pay_card_bank": "",
