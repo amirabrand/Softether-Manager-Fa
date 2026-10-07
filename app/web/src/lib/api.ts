@@ -394,12 +394,18 @@ export const api = {
       "GET",
       `${hubPath(hub)}/users/${encodeURIComponent(name)}/credential-state`,
     ),
+  userCredentialCheck: (hub: string, name: string, password: string) =>
+    request<{ match: boolean | null }>(
+      "POST",
+      `${hubPath(hub)}/users/${encodeURIComponent(name)}/credential-check`,
+      { password },
+    ),
   userVpnFile: (
     hub: string,
     name: string,
-    body: { host: string; port: number; embed_password: boolean; password?: string; account_name?: string; filename?: string },
+    body: { host: string; port: number; kind?: "ovpn" | "vpn"; embed_password: boolean; password?: string; account_name?: string; filename?: string },
   ) =>
-    request<{ filename: string; content: string }>(
+    request<{ filename: string; content: string; embedded?: boolean; password_mismatch?: boolean }>(
       "POST",
       `${hubPath(hub)}/users/${encodeURIComponent(name)}/vpn-file`,
       body,

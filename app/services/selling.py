@@ -52,6 +52,38 @@ def suggest_password(length: int = 12) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
+def ensure_group(hub: str, group: str, actor: Optional[dict] = None) -> None:
+    """Make sure the hub actually has the group a sale assigns.
+
+    SoftEther refuses to file a user under a group the hub does not have
+    (error 65: "The specified group does not exist"), and nothing in selling
+    a subscription implies hub bookkeeping. A sale therefore creates a
+    missing group on the fly -- the standard duration groups and custom
+    names alike. One that already exists is left untouched: the probe runs
+    first, so the common path costs nothing but one read.
+    """
+    try:
+        rpc("GetGroup", {"HubName_str": hub, "Name_str": group})
+        return
+    except Exception:  # noqa: BLE001 -- the probe failing means "not there"
+        pass
+    try:
+        rpc("CreateGroup", {
+            "HubName_str": hub,
+            "Name_str": group,
+            "Realname_utf": group,
+            "Note_utf": "created by AMIRITPANEL sale",
+        })
+        record(actor, "group.created", "vpn_group", group,
+               f"auto: a sale needed it on hub {hub}")
+    except Exception as exc:  # noqa: BLE001
+        # A concurrent sale may have created it first; anything else is real.
+        try:
+            rpc("GetGroup", {"HubName_str": hub, "Name_str": group})
+        except Exception:  # noqa: BLE001
+            raise exc
+
+
 def perform_sale(
     hub: str,
     name: str,
@@ -109,8 +141,17 @@ def perform_sale(
         "ExpireTime_dt": expire.isoformat(),
     }
     if group:
+        ensure_group(hub, group, actor)
         wire["GroupName_str"] = group
     if password:
+        wire["Auth_Password_str"] = password
+    elif created:
+        # A password-auth account sold without a password refuses every
+        # login -- the customer sees "user authentication failed" and the
+        # shop hears about it at midnight. So a blank field on a NEW account
+        # becomes a generated one (the receipt shows it); renewals of an
+        # existing account keep its current credential untouched.
+        password = suggest_password()
         wire["Auth_Password_str"] = password
 
     if created:
@@ -123,6 +164,14 @@ def perform_sale(
         }
         round_trip.update({k: v for k, v in wire.items() if k != "HubName_str"})
         rpc("SetUser", {**round_trip, "HubName_str": hub, "Name_str": name})
+
+    if password:
+        # The plaintext just passed through here, so file generation later
+        # needs no recovery from the server's config: remember the hash.
+        from ..credentials import save_credential
+        from ..vpnfile import hashed_password
+
+        save_credential(hub, name, hashed_password(password, name))
 
     # --- the plan's limits --------------------------------------------------
     volume_bytes = int(round(volume_gb * GB))

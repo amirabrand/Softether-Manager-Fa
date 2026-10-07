@@ -28,7 +28,11 @@ here verbatim.
 from __future__ import annotations
 
 import base64
+import io
+import os
+import re
 import struct
+import zipfile
 from typing import Any
 
 
@@ -208,9 +212,113 @@ def render_name(template: str, *, hub: str, username: str, host: str = "", port:
     return out.strip()
 
 
-def safe_filename(name: str) -> str:
+def safe_filename(name: str, ext: str = ".vpn") -> str:
     keep = "".join(c if c.isalnum() or c in "-_." else "_" for c in name).strip("._") or "connection"
-    return keep if keep.lower().endswith(".vpn") else f"{keep}.vpn"
+    # Whatever extension the name carried, the caller's kind wins.
+    for known in (".vpn", ".ovpn"):
+        if keep.lower().endswith(known):
+            keep = keep[: -len(known)]
+            break
+    return f"{keep}{ext}"
+
+
+# ---------------------------------------------------------------------------
+# OpenVPN profiles (.ovpn)
+# ---------------------------------------------------------------------------
+
+#: TCP MSS clamp (``mssfix``) written into every generated .ovpn profile.
+#
+# A customer's TCP sessions ride the OpenVPN tunnel, which itself rides the
+# BackPack tunnel: a full-size inner segment (MSS 1460 -> 1500-byte IP packet)
+# plus the OpenVPN/tunnel overhead lands past the path MTU, oversized UDP
+# datagrams get fragmented (or dropped outright by CGNAT/PPPoE paths) and
+# downloads stall mid-transfer while small requests keep working -- the exact
+# symptom of a missing clamp. mssfix 1300 keeps the wire packet at ~1392
+# bytes, safely under every MTU in the chain (1500 ethernet, 1492 PPPoE,
+# ~1430 mobile), in both directions (it rewrites the MSS announced in every
+# SYN and SYN-ACK crossing the tunnel).
+#
+# 0 disables the directive; ``SEM_OVPN_MSSFIX`` overrides the value.
+_raw_mssfix = os.environ.get("SEM_OVPN_MSSFIX", "1300").strip()
+try:
+    OVPN_MSSFIX = max(0, int(_raw_mssfix))
+except ValueError:
+    OVPN_MSSFIX = 1300
+
+
+def extract_remote_access_config(zip_bytes: bytes) -> str:
+    """The layer-3 (remote access) profile out of the ZIP the server's
+    ``MakeOpenVpnConfigFile`` returns.
+
+    The server's own sample is the trustworthy starting point: it already
+    carries the ciphers the server actually runs and the server certificate
+    inline, so the finished profile verifies against the very server it
+    dials. Only the bundle's L3 member is wanted -- the L2 bridge sample and
+    the trilingual readme are not part of a user's download.
+    """
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as bundle:
+        names = [n for n in bundle.namelist() if n.endswith("openvpn_remote_access_l3.ovpn")]
+        if not names:
+            raise ValueError("the server's OpenVPN bundle has no remote-access profile")
+        return bundle.read(names[0]).decode("utf-8", "replace")
+
+
+def build_ovpn_file(
+    *,
+    base: str,
+    host: str,
+    port: int,
+    hub: str,
+    username: str,
+    password: str = "",
+    embed: bool = True,
+) -> str:
+    """One importable OpenVPN profile (.ovpn) for this user.
+
+    The panel rewrites *where* to connect and *who* is connecting; everything
+    else -- ciphers, keepalive, the inline CA -- is the server's own sample.
+
+    SoftEther's OpenVPN transport picks the hub through the username:
+    ``user@hub``; a user of the server's default hub needs no suffix. Port
+    1194 dials UDP, which is OpenVPN's own standard; any other port rides a
+    TCP listener (SoftEther serves OpenVPN over TCP on every listener).
+
+    Every profile also carries the panel's TCP MSS clamp (``mssfix``,
+    :data:`OVPN_MSSFIX`) -- without it bulk downloads stall mid-transfer on
+    MTU-constrained paths, because full-size segments plus the tunnel
+    overhead exceed what the chain can carry.
+
+    The credential, when embedded, travels as the inline
+    ``<auth-user-pass>`` block -- plain text, because that is what the
+    OpenVPN protocol itself carries. With ``embed`` off (or no password),
+    the sample's bare ``auth-user-pass`` stays and the client asks on first
+    connect.
+    """
+    proto = "udp" if int(port) == 1194 else "tcp"
+    auth_name = username if (hub or "").strip().lower() == "default" else f"{username}@{hub}"
+    text = base.replace("\r\n", "\n").lstrip("\ufeff")
+    text = re.sub(r"(?m)^\s*proto\s+(?:udp|tcp)\s*$", lambda _m: f"proto {proto}", text)
+    text = re.sub(r"(?m)^\s*remote\s+\S+\s+\d+\s*$", lambda _m: f"remote {host} {port}", text)
+    if embed:
+        block = f"<auth-user-pass>\n{auth_name}\n{password}\n</auth-user-pass>"
+        text = re.sub(r"(?m)^\s*auth-user-pass\s*$", lambda _m: block, text)
+    if OVPN_MSSFIX:
+        # One clamp, ours: drop whatever mssfix the sample carried (none,
+        # today), then append the panel's own so the value lives in exactly
+        # one place and survives the server changing its sample.
+        text = re.sub(r"(?m)^\s*mssfix\b[^\n]*$", "", text)
+        text = text.rstrip() + (
+            "\n\n# MSS clamp: keeps TCP segments small enough for the tunnel\n"
+            "# overhead -- without it bulk downloads stall mid-transfer.\n"
+            f"mssfix {OVPN_MSSFIX}\n"
+        )
+    header = (
+        "# AMIRITPANEL - OpenVPN connection profile\n"
+        f"# Hub: {hub}    User: {username}\n"
+        "# Import into any OpenVPN client (OpenVPN Connect, OpenVPN for Android, ...).\n"
+        "\n"
+    )
+    return header + text.strip() + "\n"
 
 
 # ---------------------------------------------------------------------------

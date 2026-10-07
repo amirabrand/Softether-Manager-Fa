@@ -9,7 +9,7 @@ from __future__ import annotations
 import base64
 import calendar
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
@@ -279,6 +279,9 @@ def renew_user(hub: str, name: str, body: RenewIn, user: dict = CurrentUser) -> 
 class VpnFileIn(BaseModel):
     host: str
     port: int = 443
+    # Which file to produce: an OpenVPN profile (.ovpn, the default -- every
+    # device speaks it) or a SoftEther VPN Client connection file (.vpn).
+    kind: Literal["ovpn", "vpn"] = "ovpn"
     # Embed the credential so the client connects with no typing. The hash is
     # taken from what the panel has stored (or recovers from the server's own
     # config); a typed password overrides and refreshes that store.
@@ -306,15 +309,63 @@ def user_credential_state(hub: str, name: str, user: dict = CurrentUser) -> Wire
     return {"available": bool(found), "source": "server_config" if found else None}
 
 
+class CredentialCheckIn(BaseModel):
+    password: str = Field(min_length=1)
+
+
+@router.post("/{hub}/users/{name}/credential-check")
+def user_credential_check(
+    hub: str, name: str, body: CredentialCheckIn, user: dict = CurrentUser
+) -> Wire:
+    """Does this typed password actually open the user's account?
+
+    The typed text is hashed SoftEther's way and compared with the stored
+    credential -- and when the store disagrees, the server's own config
+    decides (refreshing the cache). A file generated with a password that
+    fails this check would fail on the server too, so the download dialog
+    asks here before letting a broken file out the door. ``match: null``
+    means there is no reference to check against (the user is not a
+    password-auth account, or the server config could not be read).
+    """
+    from ..credentials import credential_from_server_config, save_credential, stored_credential
+    from ..vpnfile import hashed_password
+
+    record_user = rpc("GetUser", {"HubName_str": hub, "Name_str": name})
+    if int(record_user.get("AuthType_u32", 1)) != 1:
+        return {"match": None}
+    typed_hash = hashed_password(body.password, name)
+    stored = stored_credential(hub, name)
+    if stored and stored != typed_hash:
+        try:
+            fresh = credential_from_server_config(hub, name)
+        except Exception:  # noqa: BLE001 -- the config read failing keeps the cache's answer
+            fresh = None
+        if fresh:
+            save_credential(hub, name, fresh)
+            stored = fresh
+    if not stored:
+        return {"match": None}
+    return {"match": stored == typed_hash}
+
+
 @router.post("/{hub}/users/{name}/vpn-file")
 def user_vpn_file(hub: str, name: str, body: VpnFileIn, user: dict = CurrentUser) -> Wire:
-    """A ready-to-import SoftEther VPN Client connection file for this user.
+    """A ready-to-import connection file for this user: an OpenVPN profile
+    (.ovpn, the default -- every platform ships a client for it) or a
+    SoftEther VPN Client connection file (.vpn).
 
-    The user's auth type shapes the file: password users get standard hashed
-    auth, RADIUS/NT users plaintext auth, certificate users a certificate
-    placeholder (the certificate itself never leaves the client side).
+    The user's auth type shapes the SoftEther file: password users get
+    standard hashed auth, RADIUS/NT users plaintext auth, certificate users
+    a certificate placeholder (the certificate itself never leaves the
+    client side). The OpenVPN profile is generated from the server's own
+    sample and carries its certificate inline.
     """
-    from ..credentials import obtain_credential, save_credential
+    from ..credentials import (
+        credential_from_server_config,
+        obtain_credential,
+        save_credential,
+        stored_credential,
+    )
     from ..settings_store import get_setting
     from ..vpnfile import (
         DEFAULT_ACCOUNT_NAME_TEMPLATE,
@@ -330,6 +381,75 @@ def user_vpn_file(hub: str, name: str, body: VpnFileIn, user: dict = CurrentUser
     auth_type = int(record_user.get("AuthType_u32", 1))
     host = body.host.strip()
 
+    names = {"hub": hub, "username": name, "host": host, "port": body.port}
+    account = body.account_name.strip() or render_name(
+        str(get_setting("vpn_account_name_template") or DEFAULT_ACCOUNT_NAME_TEMPLATE), **names
+    )
+    file_base = body.filename.strip() or render_name(
+        str(get_setting("vpn_filename_template") or DEFAULT_FILENAME_TEMPLATE), **names
+    )
+
+    if body.kind == "ovpn":
+        import base64 as _b64
+
+        from ..vpnfile import build_ovpn_file, extract_remote_access_config
+
+        # OpenVPN's auth-user-pass carries the *plain* password -- the panel's
+        # stored credential is SoftEther's hash, which OpenVPN cannot use. So
+        # a typed password is embedded (and remembered as the hash for later
+        # .vpn files); without one the file ships with a bare
+        # auth-user-pass and the client asks on first connect.
+        #
+        # The typed text is also checked against the user's real credential:
+        # a hash that does not match SoftEther's own means the file would
+        # connect nowhere, and the response says so instead of shipping a
+        # guaranteed "user authentication failed" silently.
+        embed_plain = bool(body.embed_password and body.password)
+        password_mismatch = False
+        if embed_plain and auth_type == 1:
+            typed_hash = hashed_password(body.password, name)
+            stored = stored_credential(hub, name)
+            if stored and stored != typed_hash:
+                # The cache disagrees with the typing -- the server's own
+                # config is the truth; a stale cache gets refreshed and a
+                # genuinely different password stays a mismatch.
+                try:
+                    fresh = credential_from_server_config(hub, name)
+                except Exception:  # noqa: BLE001 -- checking must not break the download
+                    fresh = None
+                if fresh:
+                    save_credential(hub, name, fresh)
+                    stored = fresh
+            password_mismatch = bool(stored and stored != typed_hash)
+            if not password_mismatch:
+                save_credential(hub, name, typed_hash)
+        result = rpc("MakeOpenVpnConfigFile", {"ServerName_str": host})
+        raw = _b64.b64decode(result.get("Buffer_bin", "") or "")
+        base = extract_remote_access_config(raw)
+        content = build_ovpn_file(
+            base=base,
+            host=host,
+            port=body.port,
+            hub=hub,
+            username=name,
+            password=body.password if embed_plain else "",
+            embed=embed_plain,
+        )
+        record(
+            user,
+            "user.vpn_file_generated",
+            "vpn_user",
+            name,
+            f"hub {hub} -> {host}:{body.port} openvpn"
+            + (" (credentials embedded)" if embed_plain else " (credential not embedded)"),
+        )
+        return {
+            "filename": safe_filename(file_base, ".ovpn"),
+            "content": content,
+            "embedded": embed_plain,
+            "password_mismatch": password_mismatch,
+        }
+
     password_hash = ""
     if body.embed_password and body.password and auth_type == 1:
         # The typed password is the freshest truth; remember it.
@@ -343,15 +463,6 @@ def user_vpn_file(hub: str, name: str, body: VpnFileIn, user: dict = CurrentUser
                 detail="No stored credential for this user — type the password once "
                 "(the panel will remember it), or turn off embedding.",
             )
-
-    names = {"hub": hub, "username": name, "host": host, "port": body.port}
-    account = body.account_name.strip() or render_name(
-        str(get_setting("vpn_account_name_template") or DEFAULT_ACCOUNT_NAME_TEMPLATE), **names
-    )
-    filename = safe_filename(
-        body.filename.strip()
-        or render_name(str(get_setting("vpn_filename_template") or DEFAULT_FILENAME_TEMPLATE), **names)
-    )
 
     content = build_vpn_file(
         host=host,
@@ -372,7 +483,7 @@ def user_vpn_file(hub: str, name: str, body: VpnFileIn, user: dict = CurrentUser
         f"hub {hub} -> {host}:{body.port}"
         + (" (credential embedded)" if password_hash or (body.embed_password and body.password) else ""),
     )
-    return {"filename": filename, "content": content}
+    return {"filename": safe_filename(file_base, ".vpn"), "content": content}
 
 
 def online_usernames(hub: str) -> set[str]:

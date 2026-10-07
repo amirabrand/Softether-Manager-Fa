@@ -523,7 +523,7 @@ export function Sales() {
                 placeholder={sel.price ? String(sel.price) : "0"}
               />
             </Field>
-            <Field label={t("Password")} hint={t("Leave empty to let the server ask for none — or press the dice.")}>
+            <Field label={t("Password")} hint={t("For a new account an empty field gets an auto-generated password, shown in the receipt; a renewal keeps the current password.")}>
               <div style={{ display: "flex", gap: "var(--s2)" }}>
                 <input
                   className="input mono"
