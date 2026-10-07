@@ -490,6 +490,15 @@ export const api = {
     request("POST", `/telegram/orders/${id}/reject`, note ? { note } : {}),
   telegramRunReminders: () =>
     request<{ Sent_u32: number }>("POST", `/telegram/reminders/run`),
+  telegramBindLink: (username: string, hub = "") =>
+    request<{
+      url: string;
+      bot_username: string;
+      code: string;
+      hub: string;
+      username: string;
+      expires_minutes: number;
+    }>("POST", `/telegram/bind-link`, { username, ...(hub ? { hub } : {}) }),
 
   // -- reseller desk (the reseller's own corner) ----------------------------------------
   resellerOverview: () =>

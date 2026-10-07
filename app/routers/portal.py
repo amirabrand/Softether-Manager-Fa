@@ -407,3 +407,30 @@ def portal_connection_file(
         "host": chosen["host"],
         "port": chosen["port"],
     }
+
+
+@router.get("/telegram-link")
+def portal_telegram_link(user: dict = PortalUser) -> Wire:
+    """A one-time t.me deep link that pairs the signed-in customer's chat
+    with this account inside the shop bot.
+
+    Minted only while the bot is actually running -- an empty url means
+    the portal shows the plain bot link instead. The code lives a day,
+    redeems once, and names this account and no other: it exists only as
+    a database row, so it cannot be forged from the url's shape.
+    """
+    if not _enabled():
+        raise HTTPException(status_code=404, detail="The portal is turned off.")
+    hub, name = user["hub"], user["username"]
+    from ..services import telegram as tg
+
+    link = tg.mint_bind_link(hub, name, source="portal")
+    if link["url"]:
+        record(
+            {"UserID": None, "Username": name},
+            "portal.telegram_bind_link",
+            "vpn_user",
+            name,
+            f"hub {hub}",
+        )
+    return link

@@ -109,6 +109,37 @@ def run_telegram_reminders(user: dict = CurrentUser) -> Wire:
     return {"Sent_u32": sent}
 
 
+class TgBindIn(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    hub: Optional[str] = Field(default="", max_length=64)
+
+
+@router.post("/telegram/bind-link")
+def make_telegram_bind_link(body: TgBindIn, user: dict = CurrentUser) -> Wire:
+    """A one-time t.me link that pairs a customer's chat with the named VPN
+    account -- the operator's way to hand the bot to a customer who never
+    opened the portal. Redeems once, lives a day."""
+    name = body.username.strip()
+    if not telegram.name_ok(name):
+        raise HTTPException(
+            status_code=422,
+            detail="The username may contain letters, digits, dot, dash, underscore.",
+        )
+    hub = (body.hub or "").strip() or telegram.default_hub()
+    if not hub:
+        raise HTTPException(status_code=409, detail="No hub is available on the server.")
+    if not telegram.user_exists(hub, name):
+        raise HTTPException(status_code=404, detail="No such user on the server.")
+    link = telegram.mint_bind_link(hub, name, source="admin")
+    if not link["url"]:
+        raise HTTPException(
+            status_code=409,
+            detail="The Telegram bot is not running; configure it first.",
+        )
+    record(user, "telegram.bind_link_created", "vpn_user", name, f"hub {hub}")
+    return link
+
+
 @router.get("/telegram/links")
 def telegram_links(user: dict = CurrentUser) -> Wire:
     rows = get_db().query_all('SELECT * FROM "TgLink" ORDER BY "TgLinkID" DESC')

@@ -28,13 +28,15 @@ import json
 import logging
 import os
 import re
+import secrets
 import threading
 import time
 import urllib.error
 import urllib.request
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
+from ..audit import record
 from ..db import get_db, utc_now
 from ..se import rpc
 from ..settings_store import get_setting
@@ -59,6 +61,12 @@ _awaiting: dict[int, str] = {}
 _NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _REMINDER_EVERY = 1800.0  # seconds between expiry scans
 
+#: a deep-link bind code lives a day; the customer opens it long before that
+BIND_TTL_MINUTES = 60 * 24
+#: the code itself (urlsafe, no padding) and the /start payload around it
+_BIND_CODE_RE = re.compile(r"^[A-Za-z0-9_-]{12}$")
+_BIND_PAYLOAD_RE = re.compile(r"^b[A-Za-z0-9_-]{12}$")
+
 # ── Persian texts ────────────────────────────────────────────────────────────
 T_WELCOME = (
     "👋 به فروشگاه VPN خوش آمدید!\n\n"
@@ -72,6 +80,11 @@ T_LINKED = "✅ حساب «{name}» به تلگرام شما وصل شد. پیش
 T_LINK_NOTFOUND = "❌ کاربری به این نام روی سرور پیدا نشد. نام کاربری را دقیق بفرستید."
 T_LINK_BAD = "❌ نام کاربری فقط می‌تواند حرف، رقم، نقطه، خط تیره و زیرخط داشته باشد."
 T_LINKED_ALREADY = "ℹ️ این حساب قبلاً به تلگرام شما وصل شده است."
+T_BIND_DEAD = (
+    "⌛ این لینک اتصال معتبر نیست یا منقضی شده است.\n"
+    "از پورتال کاربران لینک تازه بگیرید، یا از دکمهٔ «🔗 اتصال حساب"
+    "» استفاده کنید و نام کاربری‌تان را بفرستید."
+)
 T_MY_HEAD = "📦 اشتراک‌های شما:\n"
 T_MY_ROW = (
     "\n🔹 <b>{name}</b> ({hub})\n"
@@ -464,6 +477,145 @@ def _create_order(chat: int, tgname: str, group: str, username: str) -> Optional
     return dict(row) if row else None
 
 
+# ── deep-link binding: one code, one chat, one account ────────────────────
+def _iso_later(minutes: float) -> str:
+    """utc_now(), moved -- the one timestamp format every table speaks."""
+    return (datetime.now(timezone.utc) + timedelta(minutes=minutes)).replace(
+        microsecond=0
+    ).isoformat()
+
+
+def name_ok(name: str) -> bool:
+    """The username a bind link may name -- the same shape the bot accepts
+    when a customer types it."""
+    return bool(_NAME_RE.match(name or ""))
+
+
+def user_exists(hub: str, name: str) -> bool:
+    """The router's window on the roster: does this VPN account exist?"""
+    return _user_exists(hub, name)
+
+
+def default_hub() -> str:
+    """The hub a one-account shop sells into (the operator's only hub)."""
+    return _default_hub()
+
+
+def mint_bind_code(hub: str, username: str, source: str = "portal") -> str:
+    """A fresh one-time code pairing this account with whoever redeems it.
+
+    The code exists only as a row here -- it cannot be forged, only
+    handed out. Minting sweeps expired rows, so the table never grows
+    beyond the links actually opened in the last day.
+    """
+    db = get_db()
+    now = utc_now()
+    db.execute('DELETE FROM "TgBindCode" WHERE "ExpiresAt" <= :now', {"now": now})
+    code = secrets.token_urlsafe(9)  # 12 urlsafe chars -- 72 bits of secret
+    while db.query_one('SELECT 1 FROM "TgBindCode" WHERE "Code" = :c', {"c": code}):
+        code = secrets.token_urlsafe(9)
+    db.execute(
+        'INSERT INTO "TgBindCode"("Code", "HubName", "UserName", "Source", '
+        '"CreatedDate", "ExpiresAt") VALUES (:c, :h, :u, :s, :now, :exp)',
+        {"c": code, "h": hub, "u": username, "s": source, "now": now,
+         "exp": _iso_later(BIND_TTL_MINUTES)},
+    )
+    return code
+
+
+def redeem_bind_code(code: str) -> Optional[Wire]:
+    """The account a code names -- exactly once.
+
+    Redemption is a single ``DELETE ... RETURNING``: two people pressing
+    the same link cannot both win, whichever row vanishes first. A
+    database too old for RETURNING falls back to read-then-delete; the
+    poller handles updates one at a time, so there is no second redeeming
+    thread to race.
+    """
+    if not _BIND_CODE_RE.match(code or ""):
+        return None
+    db = get_db()
+    now = utc_now()
+    try:
+        rows = db.query_all(
+            'DELETE FROM "TgBindCode" WHERE "Code" = :c AND "ExpiresAt" > :now '
+            'RETURNING "HubName", "UserName"',
+            {"c": code, "now": now},
+        )
+        return rows[0] if rows else None
+    except Exception:  # noqa: BLE001 -- SQLite without RETURNING
+        row = db.query_one(
+            'SELECT "HubName", "UserName" FROM "TgBindCode" '
+            'WHERE "Code" = :c AND "ExpiresAt" > :now',
+            {"c": code, "now": now},
+        )
+        if not row:
+            return None
+        db.execute('DELETE FROM "TgBindCode" WHERE "Code" = :c', {"c": code})
+        return row
+
+
+def mint_bind_link(hub: str, username: str, source: str = "portal") -> Wire:
+    """The whole deep link -- or an empty url when the bot is not running,
+    because a link nobody can redeem is not worth handing out."""
+    st = status()
+    bot = str(st.get("bot_username") or "")
+    if not st.get("running") or not bot:
+        return {"url": "", "bot_username": bot, "code": "", "hub": hub,
+                "username": username, "expires_minutes": 0}
+    code = mint_bind_code(hub, username, source)
+    # Telegram caps a start payload at 64 characters; 'b' + 12 is far inside it
+    return {"url": f"https://t.me/{bot}?start=b{code}", "bot_username": bot,
+            "code": code, "hub": hub, "username": username,
+            "expires_minutes": BIND_TTL_MINUTES}
+
+
+def _insert_link(chat: int, tgname: str, hub: str, username: str) -> str:
+    """Pair a chat with an account: 'ok', or 'dup' when already linked."""
+    db = get_db()
+    if db.query_one(
+        'SELECT 1 FROM "TgLink" WHERE "ChatID" = :c AND "HubName" = :h '
+        'AND "UserName" = :u',
+        {"c": str(chat), "h": hub, "u": username},
+    ):
+        return "dup"
+    db.execute(
+        'INSERT INTO "TgLink"("ChatID", "HubName", "UserName", "TgName", "CreatedDate") '
+        "VALUES (:c, :h, :u, :n, :now)",
+        {"c": str(chat), "h": hub, "u": username, "n": tgname, "now": utc_now()},
+    )
+    return "ok"
+
+
+def _redeem_start_payload(token: str, chat: int, tgname: str, payload: str) -> bool:
+    """A ``/start b<code>`` from the portal's or the operator's deep link.
+
+    True = the message was a bind attempt and has been answered (the
+    welcome stays quiet); False = an ordinary /start, let the welcome
+    speak. A dead or mistyped code answers once, generically -- codes are
+    unguessable, so nothing about accounts leaks either way.
+    """
+    if not _BIND_PAYLOAD_RE.match(payload or ""):
+        return False
+    row = redeem_bind_code(payload[1:])
+    if not row:
+        _send(token, chat, T_BIND_DEAD, _main_menu())
+        return True
+    hub, name = str(row["HubName"]), str(row["UserName"])
+    if not _user_exists(hub, name):
+        _send(token, chat, T_LINK_NOTFOUND)
+        return True
+    if _insert_link(chat, tgname, hub, name) == "dup":
+        _send(token, chat, T_LINKED_ALREADY, _main_menu())
+        return True
+    record(
+        {"UserID": None, "Username": f"tg:{chat}"},
+        "telegram.link_via_deep_link", "telegram_chat", str(chat), f"{hub}/{name}",
+    )
+    _send(token, chat, T_LINKED.format(name=name), _main_menu())
+    return True
+
+
 def _handle_message(token: str, msg: Wire) -> None:
     chat = int(msg["chat"]["id"])
     text = str(msg.get("text") or "").strip()
@@ -471,7 +623,9 @@ def _handle_message(token: str, msg: Wire) -> None:
     tgname = str(frm.get("first_name") or frm.get("username") or "")
 
     mode = _awaiting.pop(chat, None)
-    if mode == "link":
+    if mode == "link" and not text.startswith("/start"):
+        # a /start here means the customer gave up typing and clicked a
+        # deep link instead -- let the payload below speak
         if not _NAME_RE.match(text):
             _send(token, chat, T_LINK_BAD)
             return
@@ -479,16 +633,9 @@ def _handle_message(token: str, msg: Wire) -> None:
         if not hub or not _user_exists(hub, text):
             _send(token, chat, T_LINK_NOTFOUND)
             return
-        db = get_db()
-        if db.query_one('SELECT 1 FROM "TgLink" WHERE "ChatID" = :c AND "HubName" = :h '
-                        'AND "UserName" = :u', {"c": str(chat), "h": hub, "u": text}):
+        if _insert_link(chat, tgname, hub, text) == "dup":
             _send(token, chat, T_LINKED_ALREADY)
             return
-        db.execute(
-            'INSERT INTO "TgLink"("ChatID", "HubName", "UserName", "TgName", "CreatedDate") '
-            "VALUES (:c, :h, :u, :n, :now)",
-            {"c": str(chat), "h": hub, "u": text, "n": tgname, "now": utc_now()},
-        )
         _send(token, chat, T_LINKED.format(name=text))
         return
 
@@ -533,6 +680,9 @@ def _handle_message(token: str, msg: Wire) -> None:
 
     if text.startswith("/start"):
         _awaiting.pop(chat, None)
+        payload = text[len("/start"):].strip()
+        if _redeem_start_payload(token, chat, tgname, payload):
+            return
         _send(token, chat, T_WELCOME, _main_menu())
     elif text.startswith("/stats") and _is_admin(chat):
         _send(token, chat, _admin_stats())

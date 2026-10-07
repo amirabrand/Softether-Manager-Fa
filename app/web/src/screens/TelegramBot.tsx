@@ -73,6 +73,10 @@ export function TelegramBot() {
   const [filter, setFilter] = useState("");
   const [links, setLinks] = useState<TgLink[] | null>(null);
 
+  const [bindUser, setBindUser] = useState("");
+  const [bindUrl, setBindUrl] = useState("");
+  const [bindBusy, setBindBusy] = useState(false);
+
   const loadConfig = useCallback(async () => {
     const out = await api.telegramConfig().catch(() => null);
     if (!out) return;
@@ -151,6 +155,20 @@ export function TelegramBot() {
       push("ok", t("{n} reminder(s) sent.", { n: fmtNum(out.Sent_u32) }));
     } catch (e) {
       push("err", e instanceof Error ? t(e.message) : String(e));
+    }
+  };
+
+  const makeBind = async () => {
+    setBindBusy(true);
+    setBindUrl("");
+    try {
+      const out = await api.telegramBindLink(bindUser.trim());
+      setBindUrl(out.url);
+      push("ok", t("Link created — send it to the customer. It works once and expires in a day."));
+    } catch (e) {
+      push("err", e instanceof Error ? t(e.message) : String(e));
+    } finally {
+      setBindBusy(false);
     }
   };
 
@@ -244,6 +262,60 @@ export function TelegramBot() {
               </button>
             </div>
           </>
+        )}
+      </div>
+
+      {/* -------- deep-link generator -------- */}
+      <div className="card pad" style={{ marginBottom: "var(--s4)" }}>
+        <SectionTitle>{t("Connect a customer via link")}</SectionTitle>
+        <p className="hint" style={{ marginTop: 0 }}>
+          {t(
+            "Creates a one-time Telegram link: the customer taps it and their chat is paired with the VPN account — no username typing, and the link dies after one use or a day.",
+          )}
+        </p>
+        <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap" }}>
+          <input
+            className="input mono"
+            style={{ maxWidth: 260 }}
+            placeholder={t("VPN username")}
+            value={bindUser}
+            onChange={(e) => setBindUser(e.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          <button
+            className="btn btn--primary"
+            disabled={bindBusy || !bindUser.trim()}
+            onClick={() => void makeBind()}
+          >
+            {bindBusy && <span className="spin" style={{ width: 13, height: 13 }} />}
+            {t("Create link")}
+          </button>
+        </div>
+        {bindUrl && (
+          <div
+            style={{
+              display: "flex",
+              gap: "var(--s2)",
+              marginTop: "var(--s3)",
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <code className="tmono" style={{ wordBreak: "break-all" }}>
+              {bindUrl}
+            </code>
+            <button
+              className="btn btn--sm"
+              onClick={() => {
+                void navigator.clipboard.writeText(bindUrl);
+                push("ok", t("Copied."));
+              }}
+            >
+              {t("Copy")}
+            </button>
+          </div>
         )}
       </div>
 

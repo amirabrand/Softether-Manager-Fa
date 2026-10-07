@@ -123,6 +123,8 @@ export function UserPortal() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState("");
   const [dlNote, setDlNote] = useState("");
+  const [tgLink, setTgLink] = useState("");
+  const [tgPending, setTgPending] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (tok: string) => {
@@ -134,6 +136,7 @@ export function UserPortal() {
         localStorage.removeItem(KEY);
         setToken(null);
         setMe(null);
+        setTgLink("");
         setError(t("Session ended. Sign in again."));
       } else {
         setError(err instanceof Error ? err.message : t("Something went wrong"));
@@ -174,6 +177,7 @@ export function UserPortal() {
       });
       localStorage.setItem(KEY, out.token);
       setToken(out.token);
+      setTgLink("");
       setPassword("");
       await load(out.token);
     } catch (err) {
@@ -211,6 +215,34 @@ export function UserPortal() {
     } catch {
       /* clipboard unavailable */
     }
+  };
+
+  // The one-time deep link: minted on intent (a tap), never on a timer,
+  // so a dashboard left open does not fill the bind-code table.
+  const ensureTgLink = useCallback(async (): Promise<string> => {
+    if (tgLink) return tgLink;
+    if (!token) return "";
+    setTgPending(true);
+    try {
+      const out = await portalFetch<{ url: string }>("/telegram-link", token);
+      setTgLink(out.url);
+      return out.url;
+    } catch {
+      return "";
+    } finally {
+      setTgPending(false);
+    }
+  }, [tgLink, token]);
+
+  const connectBot = async () => {
+    const url = await ensureTgLink();
+    const target = url || (me ? `https://t.me/${me.bot_username}` : "");
+    if (target) window.open(target, "_blank", "noopener,noreferrer");
+  };
+
+  const copyBotLink = async () => {
+    const url = await ensureTgLink();
+    if (url) await copy(url);
   };
 
   if (!booted) return <div className="loading" />;
@@ -295,6 +327,7 @@ export function UserPortal() {
               localStorage.removeItem(KEY);
               setToken(null);
               setMe(null);
+              setTgLink("");
               setError(null);
             }}
           >
@@ -398,14 +431,21 @@ export function UserPortal() {
       )}
 
       {me.bot_username && (
-        <a
-          className="btn btn--ghost btn--block"
-          href={`https://t.me/${me.bot_username}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {t("Open Telegram bot (buy & renew)")}
-        </a>
+        <div className="plate portal__card">
+          <div className="label">{t("Telegram bot")}</div>
+          <div className="portal__btns">
+            <button className="btn btn--primary" disabled={tgPending} onClick={connectBot}>
+              {tgPending && <span className="spin" />}
+              {t("Connect your Telegram")}
+            </button>
+            <button className="btn" disabled={tgPending} onClick={copyBotLink}>
+              {tgLink && copied === tgLink ? t("Copied.") : t("Copy link")}
+            </button>
+          </div>
+          <div className="micro muted">
+            {t("One tap opens the bot and pairs this account — expiry reminders arrive in Telegram.")}
+          </div>
+        </div>
       )}
     </div>
   );

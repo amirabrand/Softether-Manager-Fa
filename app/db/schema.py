@@ -261,6 +261,24 @@ TABLES: list[str] = [
         UNIQUE("ChatID", "HubName", "UserName", "Kind")
     )
     """,
+    # --- one-time deep links ----------------------------------------------------
+    # "TgBindCode" is the short-lived secret behind a t.me?start=b<code> link.
+    # The portal (for the signed-in customer) or the operator (for any account)
+    # mints one; when the customer opens the link, the bot redeems the code and
+    # pairs the chat with the VPN account -- no username typing, and nothing
+    # forgeable, because the code exists only as a row here. One-time by
+    # deletion, a day to live, and expired rows are swept whenever a new code
+    # is minted.
+    """
+    CREATE TABLE IF NOT EXISTS "TgBindCode" (
+        "Code"        TEXT    NOT NULL PRIMARY KEY,
+        "HubName"     TEXT    NOT NULL,
+        "UserName"    TEXT    NOT NULL,
+        "Source"      TEXT    NOT NULL DEFAULT 'portal',
+        "CreatedDate" TEXT    NOT NULL,
+        "ExpiresAt"   TEXT    NOT NULL
+    )
+    """,
     # --- discount coupons ------------------------------------------------------
     # The marketing side of the till: a code the operator hands a customer,
     # the percent it takes off a sale's list price, how many times it may be

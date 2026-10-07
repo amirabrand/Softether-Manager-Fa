@@ -1617,4 +1617,17 @@ export const fa: Record<string, string> = {
     "در اولین اتصال، کلاینت همین نام کاربری و رمز را می‌پرسد.",
   "Tap an address to copy it": "برای کپی، روی آدرس بزنید",
   "Open Telegram bot (buy & renew)": "ربات تلگرام (خرید و تمدید)",
+  "Connect your Telegram": "اتصال تلگرام شما",
+  "Copy link": "کپی لینک",
+  "One tap opens the bot and pairs this account — expiry reminders arrive in Telegram.":
+    "با یک لمس ربات باز می‌شود و همین اکانت به آن وصل می‌شود — یادآوری‌های انقضا در تلگرام می‌رسند.",
+  "Connect a customer via link": "اتصال مشتری با لینک",
+  "Creates a one-time Telegram link: the customer taps it and their chat is paired with the VPN account — no username typing, and the link dies after one use or a day.":
+    "یک لینک یک‌بارمصرف تلگرام می‌سازد: مشتری لینک را باز می‌کند و چتش به اکانت VPN وصل می‌شود — بدون تایپ نام کاربری؛ لینک بعد از یک‌بار استفاده یا یک روز باطل می‌شود.",
+  "Create link": "ساخت لینک",
+  "Link created — send it to the customer. It works once and expires in a day.":
+    "لینک ساخته شد — برای مشتری بفرستید. یک‌بار کار می‌کند و تا یک روز اعتبار دارد.",
+  "No such user on the server.": "چنین کاربری روی سرور نیست.",
+  "The Telegram bot is not running; configure it first.":
+    "ربات تلگرام اجرا نمی‌شود؛ اول آن را پیکربندی کنید.",
 };
