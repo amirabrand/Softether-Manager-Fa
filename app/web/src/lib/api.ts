@@ -226,7 +226,16 @@ export interface DomainIn {
 
 const hubPath = (hub: string) => `/hubs/${encodeURIComponent(hub)}`;
 
-export type Subdomain = { host: string; port: number; note: string; enabled: boolean };
+export type Subdomain = {
+  host: string;
+  port: number;
+  note: string;
+  enabled: boolean;
+  /** False = admin-only: hidden from the download dialog, the public
+   * endpoint and the Telegram bot (e.g. a direct hop customers must not
+   * bypass the relay path with). */
+  public: boolean;
+};
 
 export const api = {
   // -- auth ------------------------------------------------------------------

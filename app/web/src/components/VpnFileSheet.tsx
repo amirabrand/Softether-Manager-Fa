@@ -69,13 +69,23 @@ export function VpnFileSheet({
       .catch(() => {});
     void api
       .publicSubdomains()
-      .then((r) =>
-        setSubs(
-          (r.items as Wire[])
-            .map((i) => ({ host: String(i.host || ""), port: Number(i.port || 1194), note: String(i.note || "") }))
-            .filter((s) => s.host),
-        ),
-      )
+      .then((r) => {
+        const items = (r.items as Wire[])
+          .map((i) => ({ host: String(i.host || ""), port: Number(i.port || 1194), note: String(i.note || "") }))
+          .filter((s) => s.host);
+        setSubs(items);
+        // Customer files must never default to an address only the operator
+        // uses (e.g. the panel host when browsed over the direct hop). When
+        // the current host is not one of the customer-facing addresses,
+        // fall back to the first one.
+        if (
+          items.length &&
+          !items.some((s) => s.host === window.location.hostname.trim().toLowerCase())
+        ) {
+          setHost(items[0].host);
+          setPort(items[0].port || 1194);
+        }
+      })
       .catch(() => {});
     void api
       .vpnTemplate()
@@ -246,7 +256,11 @@ export function VpnFileSheet({
         <Field
           label={t("Server address")}
           hint={
-            ddnsFqdn ? (
+            // The server's own DDNS name is the direct SoftEther address —
+            // offering it here would bake the direct hop into customer
+            // files. Only show the shortcut when the name itself is a
+            // customer-facing address.
+            ddnsFqdn && subs.some((s) => s.host === ddnsFqdn) ? (
               <>
                 {t("What the client will dial.")}{" "}
                 <button className="linkish" onClick={() => setHost(ddnsFqdn)} type="button">

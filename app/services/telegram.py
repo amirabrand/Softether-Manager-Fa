@@ -281,6 +281,20 @@ def _user_exists(hub: str, name: str) -> bool:
 
 
 def _host_display() -> str:
+    """The address customers should dial. Prefer the first customer-facing
+    connection subdomain -- the internal SoftEther address (se_host) must not
+    leak to buyers: it would let them bypass the relay path."""
+    try:
+        for s in get_setting("connection_subdomains") or []:
+            if (
+                isinstance(s, dict)
+                and s.get("enabled", True)
+                and s.get("public", True)
+                and str(s.get("host") or "").strip()
+            ):
+                return str(s["host"]).strip()
+    except Exception:  # noqa: BLE001
+        pass
     return str(get_setting("se_host") or "") or "سرور"
 
 

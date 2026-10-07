@@ -1159,10 +1159,12 @@ function AboutCard() {
 }
 
 
-type SubRow = { host: string; port: number; note: string; enabled: boolean };
+type SubRow = { host: string; port: number; note: string; enabled: boolean; public: boolean };
 
 /** The addresses (subdomains) customers dial. Curated here; every enabled
- * entry is offered as a one-tap pick in the .vpn download dialog. */
+ * entry marked "public" is offered as a one-tap pick in the .vpn download
+ * dialog -- non-public ones stay admin-only (e.g. a direct hop customers
+ * must not bypass the relay path with). */
 function SubdomainsCard() {
   const t = useT();
   const { push } = useToast();
@@ -1176,6 +1178,7 @@ function SubdomainsCard() {
       port: Number(i.port ?? 1194),
       note: String(i.note ?? ""),
       enabled: i.enabled !== false,
+      public: i.public !== false,
     }));
 
   useEffect(() => {
@@ -1235,7 +1238,7 @@ function SubdomainsCard() {
                 key={idx}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1.4fr 90px 1.2fr auto auto",
+                  gridTemplateColumns: "1.4fr 84px 1fr auto auto auto",
                   gap: "var(--s2)",
                   alignItems: "center",
                 }}
@@ -1273,6 +1276,17 @@ function SubdomainsCard() {
                   />
                   {t("Enabled")}
                 </label>
+                <label
+                  title={t("Off = admin-only — customers never see or receive this address.")}
+                  style={{ display: "flex", gap: 6, alignItems: "center", whiteSpace: "nowrap" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={s.public}
+                    onChange={(e) => edit(idx, { public: e.target.checked })}
+                  />
+                  {t("Shown to customers")}
+                </label>
                 <button className="btn" type="button" onClick={() => setRows((rows ?? []).filter((_, i) => i !== idx))}>
                   {t("Delete")}
                 </button>
@@ -1281,7 +1295,7 @@ function SubdomainsCard() {
           </div>
         )}
         <div style={{ display: "flex", gap: "var(--s2)", marginTop: "var(--s3)" }}>
-          <button className="btn" type="button" onClick={() => setRows([...(rows ?? []), { host: "", port: 1194, note: "", enabled: true }])}>
+          <button className="btn" type="button" onClick={() => setRows([...(rows ?? []), { host: "", port: 1194, note: "", enabled: true, public: true }])}>
             {t("Add subdomain")}
           </button>
           <button className="btn btn--primary" type="button" onClick={save} disabled={busy || rows === null}>
@@ -1298,6 +1312,7 @@ function SubdomainsCard() {
                   <div key={s.host} style={{ display: "flex", gap: "var(--s2)", alignItems: "center", flexWrap: "wrap" }}>
                     <span className="mono">{s.host.trim().toLowerCase()}:{s.port}</span>
                     {s.note && <span className="hint" style={{ margin: 0 }}>{s.note}</span>}
+                    {!s.public && <span className="pill">{t("Hidden from customers")}</span>}
                     <button className="btn" type="button" onClick={() => void copy(s)}>
                       {t("Copy")}
                     </button>

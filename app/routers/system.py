@@ -85,6 +85,9 @@ class SubdomainIn(BaseModel):
     port: int = Field(default=1194, ge=1, le=65535)
     note: str = Field(default="", max_length=120)
     enabled: bool = True
+    # False = admin-only: the entry never reaches the download dialog, the
+    # public endpoint or the Telegram bot -- customers cannot dial it.
+    public: bool = True
 
 
 class SubdomainsIn(BaseModel):
@@ -107,7 +110,13 @@ def _normalise_subdomains(items: list[SubdomainIn]) -> list[dict[str, Any]]:
             continue
         seen.add(host)
         out.append(
-            {"host": host, "port": int(item.port), "note": item.note.strip(), "enabled": bool(item.enabled)}
+            {
+                "host": host,
+                "port": int(item.port),
+                "note": item.note.strip(),
+                "enabled": bool(item.enabled),
+                "public": bool(item.public),
+            }
         )
     return out
 
@@ -128,13 +137,15 @@ def put_subdomains(body: SubdomainsIn, user: dict = CurrentUser) -> dict[str, An
 
 @router.get("/public-subdomains")
 def public_subdomains() -> dict[str, Any]:
-    """Unauthenticated on purpose: only the enabled addresses -- the kind of
-    information a shop window already shows. Nothing else leaks here."""
+    """Unauthenticated on purpose: only the enabled, customer-facing
+    addresses -- the kind of information a shop window already shows. Entries
+    marked private (e.g. a direct hop that would bypass the relay path) never
+    appear here, in the download dialog or in the Telegram bot."""
     return {
         "items": [
             {"host": i["host"], "port": int(i.get("port") or 1194), "note": str(i.get("note") or "")}
             for i in get_setting("connection_subdomains")
-            if i.get("enabled", True)
+            if i.get("enabled", True) and i.get("public", True)
         ]
     }
 

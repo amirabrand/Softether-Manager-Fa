@@ -1581,6 +1581,9 @@ export const fa: Record<string, string> = {
   /* ── ساب‌دامین‌های اتصال ─────────────────────────────────────────── */
   "Connection subdomains": "ساب‌دامین‌های اتصال",
   "The addresses customers dial — shown in the download dialog, ready to copy for customers.": "آدرس‌هایی که مشتری‌ها با آن‌ها وصل می‌شوند — در پنجرهٔ دانلود نمایش داده می‌شوند و آمادهٔ کپی‌کردن برای مشتری هستند.",
+  "Shown to customers": "نمایش به مشتری",
+  "Hidden from customers": "از مشتری پنهان",
+  "Off = admin-only — customers never see or receive this address.": "خاموش = فقط مدیر — مشتری هرگز این آدرس را نمی‌بیند و در فایل اتصالش قرار نمی‌گیرد.",
   "No subdomains yet — add the addresses you hand to customers.": "هنوز ساب‌دامینی نیست — آدرس‌هایی که به مشتری می‌دهید را اضافه کنید.",
   "Add subdomain": "افزودن ساب‌دامین",
   "Save subdomains": "ذخیرهٔ ساب‌دامین‌ها",
